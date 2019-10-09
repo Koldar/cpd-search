@@ -5,6 +5,7 @@
 #include <cpp-utils/igraph.hpp>
 #include <pathfinding-utils/IHeuristic.hpp>
 #include <compressed-path-database/CpdManager.hpp>
+#include "PerturbatedCost.hpp"
 
 namespace pathfinding::search {
 
@@ -70,17 +71,18 @@ private:
      * UB not set before calling CpdHeuristic::getHeuristic
      */
     mutable cost_t lastPathOriginalCost;
+    mutable nodeid_t lastEarliestPerturbationSourceId;
     /**
      * @brief the perturbated graph we're operating in
      * 
      */
-    const IImmutableGraph<G, V, cost_t>& perturbatedGraph;
+    const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph;
 public:
-    CpdHeuristic(const cpd::CpdManager<G, V>& cpdManager, const IImmutableGraph<G, V, cost_t>& perturbatedGraph): 
+    CpdHeuristic(const cpd::CpdManager<G, V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph): 
         cpdManager{cpdManager}, 
         hOriginalCache{cpdManager.getReorderedGraph().numberOfVertices(), cost_t::INFTY}, 
         hPerturbatedCache{cpdManager.getReorderedGraph().numberOfVertices(), cost_t::INFTY},
-        lastPathActualCost{cost_t::INFTY}, lastPathOriginalCost{cost_t::INFTY}, 
+        lastPathActualCost{cost_t::INFTY}, lastPathOriginalCost{cost_t::INFTY}, lastEarliestPerturbationSourceId{0},
         perturbatedGraph{perturbatedGraph} {
 
         if (!cpdManager.isCpdLoaded()) {
@@ -92,7 +94,7 @@ public:
         cpdManager{h.cpdManager}, 
         hOriginalCache{std::move(h.hOriginalCache)}, 
         hPerturbatedCache{std::move(h.hPerturbatedCache)},
-        lastPathOriginalCost{h.lastPathOriginalCost}, lastPathActualCost{h.lastPathActualCost},
+        lastPathOriginalCost{h.lastPathOriginalCost}, lastPathActualCost{h.lastPathActualCost}, lastEarliestPerturbationSourceId{0},
         perturbatedGraph{h.perturbatedGraph} {
     }
     CpdHeuristic& operator =(const CpdHeuristic<STATE, G, V>& h) = delete;
@@ -102,6 +104,7 @@ public:
         this->hPerturbatedCache = ::std::move(h.hPerturbatedCache);
         this->lastPathActualCost = h.lastPathActualCost;
         this->lastPathOriginalCost = h.lastPathOriginalCost;
+        this->lastEarliestPerturbationSourceId = h.lastEarliestPerturbationSourceId;
         this->perturbatedGraph = h.perturbatedGraph;
         return *this;
     }
@@ -115,6 +118,7 @@ public:
         moveid_t nextMove;
         nodeid_t nextNode;
         cost_t nextCost;
+        bool lastEarliestPerturbationSourceIdAlreadySet = false;
 
         /* 
          * first: node we in
@@ -140,7 +144,12 @@ public:
 
             if (this->cpdManager.getFirstMove(currentNode, goal.getPosition(), nextMove, nextNode, nextCost)) {
                 //generated a move
-                cost_t actualCost = this->perturbatedGraph.getOutEdge(currentNode, nextMove).getPayload();
+                auto edgeCost = this->perturbatedGraph.getOutEdge(currentNode, nextMove).getPayload();
+                cost_t actualCost = edgeCost.getCost();
+                if (lastEarliestPerturbationSourceIdAlreadySet == false && edgeCost.isPerturbated()) {
+                    this->lastEarliestPerturbationSourceId = currentNode;
+                    lastEarliestPerturbationSourceIdAlreadySet = true;
+                }
                 nodeVisited.addTail(std::tuple<nodeid_t, moveid_t, cost_t, cost_t>{currentNode, nextMove, nextCost, actualCost});
                 currentNode = nextNode;
             } else {
@@ -198,6 +207,20 @@ public:
     }
     cost_t getLastPerturbatedCost() const {
         return this->lastPathActualCost;
+    }
+    /**
+     * @brief after the last call of the heuristic, represent sthe earliest perturbations
+     * 
+     * outputs the vertex id of the vertex which is the source of the first perturbated edge encountered by following the cpd path
+     * from the evaluated node till the goal
+     * 
+     * @pre
+     *  @li ::getHeuristic called
+     * 
+     * @return nodeid_t source id of the first perturbated edge encountered up until this point.
+     */
+    nodeid_t getLastEarliestNodeBeforePerturbation() const {
+        return this->lastEarliestPerturbationSourceId;
     }
     /**
      * @brief the number of nodes in the cache which H value has been set

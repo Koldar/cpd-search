@@ -1,70 +1,23 @@
-#ifndef _CPD_SEARCH_TIMED_CPD_SEARCH_HEADER__
-#define _CPD_SEARCH_TIMED_CPD_SEARCH_HEADER__
-
-#include <pathfinding-utils/GraphState.hpp>
-#include "CpdHeuristic.hpp"
-#include <compressed-path-database/CpdManager.hpp>
-#include <pathfinding-utils/ISearchAlgorithm.hpp>
-#include <pathfinding-utils/IStatePruner.hpp>
-#include <pathfinding-utils/IStateExpander.hpp>
-#include <pathfinding-utils/IStateSupplier.hpp>
-#include <pathfinding-utils/IHeuristic.hpp>
-#include <boost/smart_ptr/make_unique.hpp>
-#include <cpp-utils/listGraph.hpp>
+#ifndef _CPD_SEARCH_CPD_FOCAL_SEARCH_HEADER__
+#define _CPD_SEARCH_CPD_FOCAL_SEARCH_HEADER__
 
 namespace pathfinding::search {
 
     using namespace cpp_utils;
     using namespace cpd;
 
-    template <typename G, typename V>
-    std::unique_ptr<IImmutableGraph<G,V,PerturbatedCost>> getPerturbatedMap(const IImmutableGraph<G,V, cost_t>& graph, const cpp_utils::vectorplus<Edge<cost_t>>& perturbations) {
-        auto result = new cpp_utils::graphs::ListGraph<G,V,PerturbatedCost>{};
-
-        if (!graph.areVertexIdsContiguous()) {
-            throw cpp_utils::exceptions::ImpossibleException{};
-        }
-        //vertex
-        for (nodeid_t vertexId=0; vertexId<graph.numberOfVertices(); ++vertexId) {
-            result->addVertex(graph.getVertex(vertexId));
-        }
-
-        //edges
-        for (nodeid_t sourceId=0; sourceId<graph.numberOfVertices(); ++sourceId) {
-            for (auto outEdge: graph.getOutEdges(sourceId)) {
-                result->addEdge(sourceId, outEdge.getPayload(), PerturbatedCost{outEdge.getSinkId(), false});
-            }
-        }
-
-        //apply perturbation
-        for (auto perturbation : perturbations) {
-            if (result->getEdge(perturbation.getSourceId(), perturbation.getSinkId()).getCost() > perturbation.getPayload()) {
-                throw cpp_utils::exceptions::ImpossibleException{"perturbations are required for problem assumption to be greater than the original weight!"};
-            }
-            result->changeWeightUndirectedEdge(perturbation.getSourceId(), perturbation.getSinkId(), PerturbatedCost{perturbation.getPayload(), true});
-        }
-
-        return result;
-    }
+    
 
     /**
-     * @brief CPD search
+     * @brief CPD Focal search
      * 
-     * Perturbations
-     * =============
      * 
-     * Each perturbation:
-     * @li can only increase an edge-cost, not decrease it;
-     * @li is uniquely identified by the edge it involves, the new edge cost associated;
-     * @li detected at the beginning of the path planning episode and then assumed static;
+     * Like CPD Search but with some optimizations
      * 
-     * Feature
-     * =======
+     * Focal list:
+     * We have an open list **and** a focal list.
+     * As node successors we put, aside the usual successors, the nodes along the cpd path towards the goal just before the earliest perturbation.
      * 
-     * - as heuristic we still use CpdHeuristic;
-     * - if the cpdpath(n, g) do not have perturbations, we early terminate;
-     * - use the bounded algorithm from ijcai2019 (path planning with cpd heuristics);
-     * - the upperbound is retrieved by simulating the path generatede by cpdpath(n,g);
      * 
      * 
      * @tparam GraphState<G,V> 
@@ -351,7 +304,7 @@ namespace pathfinding::search {
             public:
                 output_t(
                     const CpdManager<G, V>& cpdManager,
-                    const IImmutableGraph<G, V, cost_t>& perturbatedGraph,
+                    const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph,
                     cost_t epsilon
                     ): 
                     heuristic{cpdManager, perturbatedGraph},
@@ -391,7 +344,7 @@ namespace pathfinding::search {
          * @return cpd search algorithm
          */
         template <typename G, typename V>
-        output_t<G,V> get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, cost_t>& perturbatedGraph, cost_t epsilon) {
+        output_t<G,V> get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t epsilon) {
             return output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,

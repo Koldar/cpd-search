@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include "GraphState.hpp"
+
 #include <pathfinding-utils/GridMap.hpp>
 #include <pathfinding-utils/MovingAIGridMapReader.hpp>
 #include <pathfinding-utils/GridMapGraphConverter.hpp>
