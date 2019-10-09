@@ -19,26 +19,23 @@ namespace pathfinding::search {
     
 
     /**
-     * @brief Time CPD search
+     * @brief CPD search
      * 
      * Perturbations
      * =============
      * 
      * Each perturbation:
      * @li can only increase an edge-cost, not decrease it;
-     * @li is uniquely identified by the timestamp it starts, the timestamp it ends, the edge it involves, the new edge cost associated;
+     * @li is uniquely identified by the edge it involves, the new edge cost associated;
+     * @li detected at the beginning of the path planning episode and then assumed static;
      * 
      * Feature
      * =======
      * 
      * - as heuristic we still use CpdHeuristic;
-     * - if the cpdpath(n, g) do not have timed perturbations, we early terminate;
+     * - if the cpdpath(n, g) do not have perturbations, we early terminate;
      * - use the bounded algorithm from ijcai2019 (path planning with cpd heuristics);
-     * - in the successor, we privilege actions which **do** move the agent. The waits are considered lastly:
-     *  the underlying reason is that we want to wait as late as possible. Concretely, when considering the successors if
-     *  no successors has a perturbated edge, then we do not generate the wait action;
      * - the upperbound is retrieved by simulating the path generatede by cpdpath(n,g);
-     * - if the cpdpath(n, g) is +infty (the costs) we try to wait for k timestamps and check if it is available now (k represents a family of heuristics);
      * 
      * 
      * @tparam GraphState<G,V> 
@@ -186,6 +183,7 @@ namespace pathfinding::search {
                     //return the solution by concatenating the current path from start to current and the cpdpath from current to goal
                     //(considering the perturbations!)
                     info("epsilon * lowerbound >= upperbound! ", epsilon, "*", current.getF(), ">=", upperbound);
+                    info("early terminating from ", *earlyTerminationState, "up until ", *expectedGoal);
                     goal = this->earlyTerminate(*earlyTerminationState, expectedGoal);
                     goto goal_found;
                 }
@@ -228,6 +226,13 @@ namespace pathfinding::search {
 
                         //we may have a new upperbound of the solution
                         if (upperbound > gval + this->heuristic.getLastPerturbatedCost()) {
+                            info("updating upperbound. upperbound: from", upperbound, "to", gval + this->heuristic.getLastPerturbatedCost());
+                            if (earlyTerminationState == nullptr) {
+                                info("updating incumbent. incumbent: from null to", successor);
+                            } else {
+                                info("updating incumbent. incumbent: from", *earlyTerminationState, "to", successor);
+                            }
+                            
                             upperbound = gval + this->heuristic.getLastPerturbatedCost();
                             earlyTerminationState = &successor;
                         }

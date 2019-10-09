@@ -123,9 +123,9 @@ public:
          */
         cpp_utils::vectorplus<std::tuple<nodeid_t, moveid_t, cost_t, cost_t>> nodeVisited{};
         nodeid_t currentNode = current.getPosition();
-        critical("fetching heuristic value of ", current, "towards", goal);
+        finer("fetching heuristic value of ", current, "towards", goal);
         while (true) {
-            critical("we are in ", currentNode, "goal is", goal.getPosition());
+            finer("we are in ", currentNode, "goal is", goal.getPosition());
             if (currentNode == goal.getPosition()) {
                 //current is goal
                 this->hOriginalCache[goal.getPosition()] = 0;

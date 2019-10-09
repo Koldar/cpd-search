@@ -318,8 +318,8 @@ SCENARIO("test CpdSearch with optimality bound") {
 
         AdjacentGraph<std::string, xyLoc, cost_t> perturbatedGraph{cpdManager.getReorderedGraph()};
 
-        perturbatedGraph.changeWeightEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), 150);
-        perturbatedGraph.changeWeightEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), 200);
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), 150);
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), 200);
 
         // USE THE FACTORY TO PROVIDE TimeCpdSearch
 
@@ -418,7 +418,7 @@ SCENARIO("test CpdSearch with optimality bound") {
             REQUIRE(solution->getCost() == 400);
         }
 
-        WHEN("early termination (perturbation in the middle)") {
+        WHEN("early termination (perturbation near the end)") {
             xyLoc startLoc{0,0};
             xyLoc goalLoc{4,4};
             nodeid_t startId = g.idOfVertex(startLoc);
@@ -439,6 +439,213 @@ SCENARIO("test CpdSearch with optimality bound") {
                     std::make_tuple(xyLoc{4,4})
             ));
             REQUIRE(solution->getCost() == (2*141 + 3*100 + 1*200));
+        }
+
+        WHEN("early termination (perturbation near the start)") {
+            xyLoc startLoc{4,4};
+            xyLoc goalLoc{0,0};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{4,4}),
+                    std::make_tuple(xyLoc{3,4}),
+                    std::make_tuple(xyLoc{2,4}),
+                    std::make_tuple(xyLoc{1,3}),
+                    std::make_tuple(xyLoc{0,2}),
+                    std::make_tuple(xyLoc{0,1}),
+                    std::make_tuple(xyLoc{0,0}) 
+            ));
+            REQUIRE(solution->getCost() == (2*141 + 3*100 + 1*200));
+        }
+
+        
+    }
+}
+
+SCENARIO("test CpdSearch for suboptimality solutions") {
+   
+    GIVEN("a gridmap") {
+
+        // CREATE GRAPH WHERE WE WANT TO OPERATE
+
+        MovingAIGridMapReader reader{
+            '.', 100,
+            'T', 150,
+            '@', cost_t::INFTY
+        };
+        GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
+        GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
+        AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
+
+        /*
+         *  01234
+         * 0.XX..
+         * 1...@@
+         * 2..@@.
+         * 3...@@
+         * 4..XX.
+         * 
+         */
+
+        // INCLUDE THE CPD
+
+        CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./square03.cpd"}, graph};
+        const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
+
+        // CREATE THE TIME GRAPH WITH PERTURBATIONS
+
+        AdjacentGraph<std::string, xyLoc, cost_t> perturbatedGraph{cpdManager.getReorderedGraph()};
+
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), 500);
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 1}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), 500);
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), 200);
+
+        // USE THE FACTORY TO PROVIDE TimeCpdSearch
+
+        CpdSearchFactory factory{};
+        auto factory_output = factory.get(cpdManager, perturbatedGraph, 5);
+
+        REQUIRE(g.haveSameVertices(perturbatedGraph));
+
+        WHEN("start == goal") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{0,0};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId);
+            auto solution = factory_output.search.search(start, goal, false, false);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0})
+            ));
+            REQUIRE(solution->getCost() == 0);
+        }
+
+        WHEN("start is diagonal goal (no perturbations)") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{1,1};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
+            ));
+            REQUIRE(solution->getCost() == 141);
+        }
+
+        WHEN("start is above goal (no perturbations)") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{0,1};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
+            ));
+            REQUIRE(solution->getCost() == 100);
+        }
+
+        WHEN("start to goal via perturbated edge") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{4,0};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{0,0}), 
+                    std::make_tuple(xyLoc{1,0}),
+                    std::make_tuple(xyLoc{2,0}),
+                    std::make_tuple(xyLoc{3,0}),
+                    std::make_tuple(xyLoc{4,0})
+            ));
+            REQUIRE(solution->getCost() == (3*100 + 1*500));
+        }
+
+
+        WHEN("early termination (perturbation near the end)") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{4,4};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{0,0}), 
+                    std::make_tuple(xyLoc{0,1}),
+                    std::make_tuple(xyLoc{0,2}),
+                    std::make_tuple(xyLoc{1,3}),
+                    std::make_tuple(xyLoc{2,4}),
+                    std::make_tuple(xyLoc{3,4}),
+                    std::make_tuple(xyLoc{4,4})
+            ));
+            REQUIRE(solution->getCost() == (2*141 + 3*100 + 1*200));
+        }
+
+        WHEN("early termination (perturbation near the start)") {
+            xyLoc startLoc{4,4};
+            xyLoc goalLoc{0,0};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{4,4}),
+                    std::make_tuple(xyLoc{3,4}),
+                    std::make_tuple(xyLoc{2,4}),
+                    std::make_tuple(xyLoc{1,3}),
+                    std::make_tuple(xyLoc{0,2}),
+                    std::make_tuple(xyLoc{0,1}),
+                    std::make_tuple(xyLoc{0,0}) 
+            ));
+            REQUIRE(solution->getCost() == (2*141 + 3*100 + 1*200));
+        }
+
+        WHEN("testing bound") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{2,0};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{0,0}),
+                    std::make_tuple(xyLoc{1,0}),
+                    std::make_tuple(xyLoc{2,0})
+            ));
+            REQUIRE(solution->getCost() == (1*100 + 1*500));
         }
 
         
