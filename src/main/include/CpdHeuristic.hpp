@@ -123,7 +123,9 @@ public:
          */
         cpp_utils::vectorplus<std::tuple<nodeid_t, moveid_t, cost_t, cost_t>> nodeVisited{};
         nodeid_t currentNode = current.getPosition();
+        critical("fetching heuristic value of ", current, "towards", goal);
         while (true) {
+            critical("we are in ", currentNode, "goal is", goal.getPosition());
             if (currentNode == goal.getPosition()) {
                 //current is goal
                 this->hOriginalCache[goal.getPosition()] = 0;
@@ -138,7 +140,7 @@ public:
 
             if (this->cpdManager.getFirstMove(currentNode, goal.getPosition(), nextMove, nextNode, nextCost)) {
                 //generated a move
-                cost_t actualCost = this->graph.getOutEdge(currentNode, nextMove).getPayload();
+                cost_t actualCost = this->perturbatedGraph.getOutEdge(currentNode, nextMove).getPayload();
                 nodeVisited.addTail(std::tuple<nodeid_t, moveid_t, cost_t, cost_t>{currentNode, nextMove, nextCost, actualCost});
                 currentNode = nextNode;
             } else {
@@ -188,6 +190,7 @@ public:
 public:
     virtual void cleanup() {
         this->hOriginalCache.fill(cost_t::INFTY);
+        this->hPerturbatedCache.fill(cost_t::INFTY);
     }
 public:
     cost_t getLastOriginalCost() const {
@@ -202,6 +205,7 @@ public:
      * @return size_t 
      */
     size_t getCachedElementsNumber() const {
+        critical("the cache is ", this->hOriginalCache);
         return this->hOriginalCache.filter([&](cost_t h) {return h.isNotInfinity();}).size();
     }
     const cpd::CpdManager<G, V>& getCpdManager() const {

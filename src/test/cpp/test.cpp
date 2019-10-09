@@ -41,10 +41,10 @@ SCENARIO("test CpdHeuristic") {
          */
 
         CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./square03.cpd"}, graph};
-        CpdHeuristic<GraphState<std::string, xyLoc>, std::string, xyLoc> h{cpdManager};
         const IImmutableGraph<std::string, xyLoc, cost_t>& reorderedGraph = cpdManager.getReorderedGraph();
         // IT'S REALLY IMPORTANT THAT WE QUERY NOT ON "graph" BUT ON "reorderedGraph"!!!!!
         // THIS because the CPD uses those indices, not the ones from "graph"!!!
+        CpdHeuristic<GraphState<std::string, xyLoc>, std::string, xyLoc> h{cpdManager, reorderedGraph};
 
         REQUIRE(h.isAdmissible());
         REQUIRE(h.isConsistent());
@@ -107,10 +107,11 @@ SCENARIO("test CpdHeuristic") {
             xyLoc startLoc2{4,0};
             xyLoc goalLoc{2,0};
             GraphState<std::string, xyLoc> start1{0, reorderedGraph, reorderedGraph.idOfVertex(startLoc1)};
-            GraphState<std::string, xyLoc> start2{0, reorderedGraph, reorderedGraph.idOfVertex(startLoc1)};
+            GraphState<std::string, xyLoc> start2{0, reorderedGraph, reorderedGraph.idOfVertex(startLoc2)};
             GraphState<std::string, xyLoc> goal{0, reorderedGraph, reorderedGraph.idOfVertex(goalLoc)};
             REQUIRE(h.getHeuristic(start1, &goal) == (100*2));
             REQUIRE(h.getHeuristic(start2, &goal) == (100*2));
+
             REQUIRE(h.getCachedElementsNumber() == 5);
         }
 
@@ -430,14 +431,14 @@ SCENARIO("test CpdSearch with optimality bound") {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
-                    std::make_tuple(xyLoc{1,1}),
-                    std::make_tuple(xyLoc{1,2}),
+                    std::make_tuple(xyLoc{0,1}),
+                    std::make_tuple(xyLoc{0,2}),
                     std::make_tuple(xyLoc{1,3}),
                     std::make_tuple(xyLoc{2,4}),
                     std::make_tuple(xyLoc{3,4}),
                     std::make_tuple(xyLoc{4,4})
             ));
-            REQUIRE(solution->getCost() == (2*141 + 2*100 + 1*200));
+            REQUIRE(solution->getCost() == (2*141 + 3*100 + 1*200));
         }
 
         

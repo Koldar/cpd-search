@@ -14,14 +14,14 @@ set(THEPROJECT_OUTPUT "SO")
 
 #a spaced separated list of shared libraries names that will be used when linking the main project. 
 #Each library needs to be installed on the system. Each library should be declared as a quoted string
-set(THEPROJECT_REQUIRED_SHARED_LIBRARIES "cpp-utils" "pathfinding-utils" "compressed-path-database" "metis" "m")
+set(THEPROJECT_REQUIRED_SHARED_LIBRARIES "boost_system" "boost_filesystem" "cpp-utils" "pathfinding-utils" "compressed-path-database" "metis" "dl" "m")
 
 #Represents the library official name of an entry in THEPROJECT_REQUIRED_SHARED_LIBRARIES.
 #This has been done because sometimes a library soname is not the library common nam e (e.g., "m" is "math")
 #The variable is a spaced separated list of names. The i-th element in THEPROJECT_REQUIRED_SHARED_LIBRARIES_NAMES
 #The cell is empty ig the library soname is the same of the library official name.
 #is the name of the i-th library in THEPROJECT_REQUIRED_SHARED_LIBRARIES
-set(THEPROJECT_REQUIRED_SHARED_LIBRARIES_NAMES "cpp-utils" "pathfinding-utils" "compressed-path-database" "metis" "math")
+set(THEPROJECT_REQUIRED_SHARED_LIBRARIES_NAMES "boost" "boost_filesystem" "cpp-utils" "pathfinding-utils" "compressed-path-database" "metis" "Dynamic Linking" "math")
 
 #Represents the package name we need to install with "apt-get" software of an entry in THEPROJECT_REQUIRED_SHARED_LIBRARIES.
 #This has been done because in this way this script can automatically install dependency if needed (this feature has not been done yet though)
@@ -29,7 +29,7 @@ set(THEPROJECT_REQUIRED_SHARED_LIBRARIES_NAMES "cpp-utils" "pathfinding-utils" "
 #The variable is a spaced separated list of names. The i-th element in THEPROJECT_REQUIRED_SHARED_LIBRARIES_NAMES.
 #An empty string if the library cannot be installed via apt-get.
 #is the name of the i-th library in THEPROJECT_REQUIRED_SHARED_LIBRARIES
-set(THEPROJECT_REQUIRED_SHARED_LIBRARIES_APTGET "" "" "" "metis" "")
+set(THEPROJECT_REQUIRED_SHARED_LIBRARIES_APTGET "" "" "" "" "" "metis" "" "")
 
 #a spaced separated list of additional shared libraries that will be used when linking the test application. Each library needs to be installed
 #ignore it if you put "THEPROJECT_TEST_ENABLE_TEST_COMPILATION" to "false" 

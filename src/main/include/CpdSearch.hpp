@@ -317,17 +317,14 @@ namespace pathfinding::search {
             public:
                 output_t(
                     const CpdManager<G, V>& cpdManager,
-                    GraphStateGoalChecker<G, V>&& goalChecker, 
-                    GraphStateSupplier<G, V>&& stateSupplier, 
-                    GraphStateExpander<G, V>&& stateExpander, 
-                    PruneIfExpanded<GraphState<G, V>>&& statePruner,
+                    const IImmutableGraph<G, V, cost_t>& perturbatedGraph,
                     cost_t epsilon
                     ): 
-                    goalChecker{::std::move(goalChecker)}, 
-                    stateSupplier{::std::move(stateSupplier)}, 
-                    stateExpander{::std::move(stateExpander)}, 
-                    statePruner{::std::move(statePruner)},
-                    heuristic{cpdManager},
+                    heuristic{cpdManager, perturbatedGraph},
+                    goalChecker{}, 
+                    stateSupplier{perturbatedGraph}, 
+                    stateExpander{perturbatedGraph}, 
+                    statePruner{},
                     search{this->heuristic, this->goalChecker, this->stateSupplier, this->stateExpander, this->statePruner, this->heuristic.getCpdManager(), epsilon, 1024} {
                 }
 
@@ -361,17 +358,9 @@ namespace pathfinding::search {
          */
         template <typename G, typename V>
         output_t<G,V> get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, cost_t>& perturbatedGraph, cost_t epsilon) {
-            auto stateSupplier = GraphStateSupplier<G, V>{perturbatedGraph};
-            auto stateExpander = GraphStateExpander<G, V>{perturbatedGraph};
-            auto goalChecker = GraphStateGoalChecker<G, V>{};
-            auto statePruner = PruneIfExpanded<GraphState<G, V>>{};
-            
             return output_t<G, V>{
                 cpdManager,
-                std::move(goalChecker),
-                std::move(stateSupplier),
-                std::move(stateExpander),
-                std::move(statePruner),
+                perturbatedGraph,
                 epsilon
             };
         }
