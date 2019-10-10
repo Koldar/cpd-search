@@ -9,6 +9,8 @@
 #include <pathfinding-utils/IStateExpander.hpp>
 #include <pathfinding-utils/IStateSupplier.hpp>
 #include <pathfinding-utils/IHeuristic.hpp>
+#include <pathfinding-utils/StandardLocationGoalChecker.hpp>
+#include <pathfinding-utils/StandardStateExpander.hpp>
 #include <boost/smart_ptr/make_unique.hpp>
 #include <cpp-utils/listGraph.hpp>
 
@@ -66,6 +68,11 @@ namespace pathfinding::search {
      * - use the bounded algorithm from ijcai2019 (path planning with cpd heuristics);
      * - the upperbound is retrieved by simulating the path generatede by cpdpath(n,g);
      * 
+     * State
+     * =====
+     * 
+     * The state is GraphState. the states are over the perturbated graph. It's not a big deal since GraphState uses the underlying graph only for <<.
+     * 
      * 
      * @tparam G type of the payload of the underlying map graph
      * @tparam V type of the payload of each vertex in map graph
@@ -86,7 +93,7 @@ namespace pathfinding::search {
          * @param epsilon suboptimality bound to test
          * @param openListCapacity 
          */
-        CpdSearch(CpdHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, GraphStateExpander<G, V, PerturbatedCost, PerturbatedCost::getCost>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon, unsigned int openListCapacity = 1024) : 
+        CpdSearch(CpdHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, StandardStateExpander<GraphStateReal, G, V, PerturbatedCost, PerturbatedCost::getCost>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon, unsigned int openListCapacity = 1024) : 
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
             openList{nullptr} {
@@ -138,7 +145,7 @@ namespace pathfinding::search {
         const CpdManager<G, V>& cpdManager;
         CpdHeuristic<GraphStateReal, G, V>& heuristic;
         IGoalChecker<GraphStateReal>& goalChecker;
-        GraphStateExpander<G, V, PerturbatedCost, PerturbatedCost::getCost>& expander;
+        StandardStateExpander<GraphStateReal, G, V, PerturbatedCost, PerturbatedCost::getCost>& expander;
         IStateSupplier<GraphStateReal, nodeid_t>& supplier;
         IStatePruner<GraphStateReal>& pruner;
         StaticPriorityQueue<GraphStateReal>* openList;
@@ -317,7 +324,7 @@ namespace pathfinding::search {
                  * @brief place where the goal checker is located in memory
                  * 
                  */
-                GraphStateGoalChecker<G, V, PerturbatedCost> goalChecker;
+                StandardLocationGoalChecker<GraphState<G, V, PerturbatedCost>> goalChecker;
                 /**
                  * @brief place where the state supplier is located in memory
                  * 
@@ -327,7 +334,7 @@ namespace pathfinding::search {
                  * @brief place where the state expander is located in memory
                  * 
                  */
-                GraphStateExpander<G, V, PerturbatedCost, PerturbatedCost::getCost> stateExpander;
+                StandardStateExpander<GraphState<G, V, PerturbatedCost>, G, V, PerturbatedCost, PerturbatedCost::getCost> stateExpander;
                 /**
                  * @brief place where the state pruner is located in memory
                  * 

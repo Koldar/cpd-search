@@ -10,6 +10,7 @@
 #include <boost/filesystem.hpp>
 #include "CpdSearch.hpp"
 #include "CpdHeuristic.hpp"
+#include "CpdFocalSearch.hpp"
 
 using namespace pathfinding::search;
 using namespace pathfinding::maps;
@@ -192,12 +193,12 @@ SCENARIO("test GraphState supporting concepts") {
          * 
          */
 
-        GraphStateSupplier<std::string, xyLoc> supplier{*graph};
+        GraphStateSupplier<std::string, xyLoc, cost_t> supplier{*graph};
 
         WHEN("test GraphStateSupplier") {
             
             THEN("state not yet generated") {
-                GraphState<std::string, xyLoc>& s = supplier.getState(graph->idOfVertex(xyLoc{1,3}));
+                GraphState<std::string, xyLoc, cost_t>& s = supplier.getState(graph->idOfVertex(xyLoc{1,3}));
                 REQUIRE(s.getPosition() == graph->idOfVertex(xyLoc{1,3}));
                 REQUIRE(s.getId() == graph->idOfVertex(xyLoc{1,3}));
             }
@@ -213,12 +214,12 @@ SCENARIO("test GraphState supporting concepts") {
             }
         }
 
-        GraphStateExpander<std::string, xyLoc> expander{*graph};
+        StandardStateExpander<GraphState<std::string, xyLoc, cost_t>, std::string, xyLoc> expander{*graph};
 
         WHEN("test GraphStateExpander") {
-            GraphState<std::string, xyLoc> s = supplier.getState(graph->idOfVertex(xyLoc{1,3}));
-            cpp_utils::vectorplus<std::pair<GraphState<std::string,xyLoc>&, cost_t>> successors = expander.getSuccessors(s, supplier);
-            auto states = successors.map<GraphState<std::string,xyLoc>>([&](std::pair<GraphState<std::string, xyLoc>&, cost_t> p) {return p.first; });
+            GraphState<std::string, xyLoc, cost_t> s = supplier.getState(graph->idOfVertex(xyLoc{1,3}));
+            cpp_utils::vectorplus<std::pair<GraphState<std::string, xyLoc, cost_t>&, cost_t>> successors = expander.getSuccessors(s, supplier);
+            auto states = successors.map<GraphState<std::string, xyLoc>>([&](std::pair<GraphState<std::string, xyLoc>&, cost_t> p) {return p.first; });
             info("successors: ", successors);
             REQUIRE(successors.size() == 7);
 
@@ -257,7 +258,7 @@ SCENARIO("test GraphState supporting concepts") {
         }
 
         WHEN("testing GraphStateGoalChecker") {
-            GraphStateGoalChecker<std::string, xyLoc> goalChecker{};
+            StandardLocationGoalChecker<GraphState<std::string, xyLoc, cost_t>> goalChecker{};
 
             GraphState<std::string, xyLoc> n1 = supplier.getState(graph->idOfVertex(xyLoc{1,3}));
             GraphState<std::string, xyLoc> n2 = supplier.getState(graph->idOfVertex(xyLoc{2,3}));
@@ -650,6 +651,191 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
                     std::make_tuple(xyLoc{2,0})
             ));
             REQUIRE(solution->getCost() == (1*100 + 1*500));
+        }
+
+        
+    }
+}
+
+SCENARIO("test CpdFocalSearch with optimality bound") {
+   
+    GIVEN("a gridmap") {
+
+        // CREATE GRAPH WHERE WE WANT TO OPERATE
+
+        MovingAIGridMapReader reader{
+            '.', 100,
+            'T', 150,
+            '@', cost_t::INFTY
+        };
+        GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
+        GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
+        AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
+
+        /*
+         *  01234
+         * 0.XX..
+         * 1...@@
+         * 2..@@.
+         * 3...@@
+         * 4..XX.
+         * 
+         */
+
+        // INCLUDE THE CPD
+
+        CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./square03.cpd"}, graph};
+        const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
+
+        // CREATE THE TIME GRAPH WITH PERTURBATIONS
+
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) {return PerturbatedCost{c, false}; })};
+
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{150, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), PerturbatedCost{200, true});
+
+        // USE THE FACTORY TO PROVIDE CpdSearch
+
+        CpdFocalSearchFactory factory{};
+        auto factory_output = factory.get(cpdManager, perturbatedGraph, 1);
+
+        REQUIRE(g.haveSameVertices(perturbatedGraph));
+
+        WHEN("start == goal") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{0,0};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId);
+            start.getPayload();
+            auto solution = factory_output.search.search(start, goal, false, false);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0})
+            ));
+            REQUIRE(solution->getCost() == 0);
+        }
+
+        WHEN("start is diagonal goal (no perturbations)") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{1,1};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
+            ));
+            REQUIRE(solution->getCost() == 141);
+        }
+
+        WHEN("start is above goal (no perturbations)") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{0,1};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
+            ));
+            REQUIRE(solution->getCost() == 100);
+        }
+
+        WHEN("start to goal via perturbated edge") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{4,0};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{0,0}), 
+                    std::make_tuple(xyLoc{1,0}),
+                    std::make_tuple(xyLoc{2,0}),
+                    std::make_tuple(xyLoc{3,0}),
+                    std::make_tuple(xyLoc{4,0})
+            ));
+            REQUIRE(solution->getCost() == 450);
+        }
+
+        WHEN("early termination (no perturbation)") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{0,4};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{0,0}), 
+                    std::make_tuple(xyLoc{0,1}),
+                    std::make_tuple(xyLoc{0,2}),
+                    std::make_tuple(xyLoc{0,3}),
+                    std::make_tuple(xyLoc{0,4})
+            ));
+            REQUIRE(solution->getCost() == 400);
+        }
+
+        WHEN("early termination (perturbation near the end)") {
+            xyLoc startLoc{0,0};
+            xyLoc goalLoc{4,4};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{0,0}), 
+                    std::make_tuple(xyLoc{0,1}),
+                    std::make_tuple(xyLoc{0,2}),
+                    std::make_tuple(xyLoc{1,3}),
+                    std::make_tuple(xyLoc{2,4}),
+                    std::make_tuple(xyLoc{3,4}),
+                    std::make_tuple(xyLoc{4,4})
+            ));
+            REQUIRE(solution->getCost() == (2*141 + 3*100 + 1*200));
+        }
+
+        WHEN("early termination (perturbation near the start)") {
+            xyLoc startLoc{4,4};
+            xyLoc goalLoc{0,0};
+            nodeid_t startId = g.idOfVertex(startLoc);
+            nodeid_t goalId = g.idOfVertex(goalLoc);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
+            auto solution = factory_output.search.search(start, goal, false, true);
+            REQUIRE(
+                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
+                    return x->getPayload();
+                }) == vectorplus<std::tuple<xyLoc>>::make(
+                    std::make_tuple(xyLoc{4,4}),
+                    std::make_tuple(xyLoc{3,4}),
+                    std::make_tuple(xyLoc{2,4}),
+                    std::make_tuple(xyLoc{1,3}),
+                    std::make_tuple(xyLoc{0,2}),
+                    std::make_tuple(xyLoc{0,1}),
+                    std::make_tuple(xyLoc{0,0}) 
+            ));
+            REQUIRE(solution->getCost() == (2*141 + 3*100 + 1*200));
         }
 
         
