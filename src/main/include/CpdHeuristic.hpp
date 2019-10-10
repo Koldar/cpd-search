@@ -22,6 +22,7 @@ namespace pathfinding::search {
  */
 template <typename STATE, typename G, typename V>
 class CpdHeuristic: public IHeuristic<STATE> {
+    typedef CpdHeuristic<STATE, G, V> CpdHeuristicInstance;
 public:
     using IHeuristic<STATE>::getHeuristic;
     using IMemorable::getByteMemoryOccupied;
@@ -78,6 +79,12 @@ private:
      */
     const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph;
 public:
+    /**
+     * @brief Construct a new Cpd Heuristic object
+     * 
+     * @param cpdManager 
+     * @param perturbatedGraph the graph we're going to use to fetch the costs fo the edges on the perturbated graph
+     */
     CpdHeuristic(const cpd::CpdManager<G, V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph): 
         cpdManager{cpdManager}, 
         hOriginalCache{cpdManager.getReorderedGraph().numberOfVertices(), cost_t::INFTY}, 
@@ -89,16 +96,16 @@ public:
             throw cpp_utils::exceptions::InvalidStateException<cpd::CpdManager<G, V>>{cpdManager};
         }
     }
-    CpdHeuristic(const CpdHeuristic<STATE, G, V>& other) = delete;
-    CpdHeuristic(CpdHeuristic<STATE, G, V>&& h): 
+    CpdHeuristic(const CpdHeuristicInstance& other) = delete;
+    CpdHeuristic(CpdHeuristicInstance&& h): 
         cpdManager{h.cpdManager}, 
         hOriginalCache{std::move(h.hOriginalCache)}, 
         hPerturbatedCache{std::move(h.hPerturbatedCache)},
         lastPathOriginalCost{h.lastPathOriginalCost}, lastPathActualCost{h.lastPathActualCost}, lastEarliestPerturbationSourceId{0},
         perturbatedGraph{h.perturbatedGraph} {
     }
-    CpdHeuristic& operator =(const CpdHeuristic<STATE, G, V>& h) = delete;
-    CpdHeuristic& operator =(const CpdHeuristic<STATE, G, V>&& h) {
+    CpdHeuristicInstance& operator =(const CpdHeuristicInstance& h) = delete;
+    CpdHeuristicInstance& operator =(CpdHeuristicInstance&& h) {
         this->cpdManager = h.cpdManager;
         this->hOriginalCache = std::move(h.hOriginalCache);
         this->hPerturbatedCache = ::std::move(h.hPerturbatedCache);

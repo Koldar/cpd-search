@@ -43,6 +43,17 @@ namespace pathfinding::search {
             return *this;
         }
     public:
+        friend bool operator ==(const PerturbatedCost& a, const PerturbatedCost& b) {
+            return a.cost == b.cost && a.perturbated == b.perturbated;
+        }
+        friend std::ostream& operator <<(std::ostream& ss, const PerturbatedCost& a) {
+            ss << "{" << a.cost << (a.perturbated ? "perturbated" : "unaffected") << "}";
+            return ss;
+        }
+    public:
+        static cost_t getCost(const PerturbatedCost& c) {
+            return c.getCost();
+        }
         cost_t getCost() const {
             return this->cost;
         }

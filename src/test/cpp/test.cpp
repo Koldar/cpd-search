@@ -44,7 +44,11 @@ SCENARIO("test CpdHeuristic") {
         const IImmutableGraph<std::string, xyLoc, cost_t>& reorderedGraph = cpdManager.getReorderedGraph();
         // IT'S REALLY IMPORTANT THAT WE QUERY NOT ON "graph" BUT ON "reorderedGraph"!!!!!
         // THIS because the CPD uses those indices, not the ones from "graph"!!!
-        CpdHeuristic<GraphState<std::string, xyLoc>, std::string, xyLoc> h{cpdManager, reorderedGraph};
+        std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>> perturbatedGraph = reorderedGraph.mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false};});
+        CpdHeuristic<GraphState<std::string, xyLoc>, std::string, xyLoc> h{
+            cpdManager, 
+            *perturbatedGraph
+        };
 
         REQUIRE(h.isAdmissible());
         REQUIRE(h.isConsistent());
@@ -316,12 +320,12 @@ SCENARIO("test CpdSearch with optimality bound") {
 
         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        AdjacentGraph<std::string, xyLoc, cost_t> perturbatedGraph{cpdManager.getReorderedGraph()};
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) {return PerturbatedCost{c, false}; })};
 
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), 150);
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), 200);
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{150, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), PerturbatedCost{200, true});
 
-        // USE THE FACTORY TO PROVIDE TimeCpdSearch
+        // USE THE FACTORY TO PROVIDE CpdSearch
 
         CpdSearchFactory factory{};
         auto factory_output = factory.get(cpdManager, perturbatedGraph, 1);
@@ -333,11 +337,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId);
             auto solution = factory_output.search.search(start, goal, false, false);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0})
             ));
@@ -349,11 +353,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{1,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
             ));
@@ -365,11 +369,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{0,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
             ));
@@ -381,11 +385,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{4,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
@@ -402,11 +406,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{0,4};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
@@ -423,11 +427,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{4,4};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
@@ -446,11 +450,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{4,4}),
@@ -500,11 +504,11 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
 
         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        AdjacentGraph<std::string, xyLoc, cost_t> perturbatedGraph{cpdManager.getReorderedGraph()};
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; })};
 
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), 500);
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 1}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), 500);
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), 200);
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{500, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 1}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{500, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), PerturbatedCost{200, true});
 
         // USE THE FACTORY TO PROVIDE TimeCpdSearch
 
@@ -518,11 +522,11 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId);
             auto solution = factory_output.search.search(start, goal, false, false);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0})
             ));
@@ -534,11 +538,11 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             xyLoc goalLoc{1,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
             ));
@@ -550,11 +554,11 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             xyLoc goalLoc{0,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
             ));
@@ -566,11 +570,11 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             xyLoc goalLoc{4,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
@@ -588,11 +592,11 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             xyLoc goalLoc{4,4};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
@@ -611,11 +615,11 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{4,4}),
@@ -634,11 +638,11 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             xyLoc goalLoc{2,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphState<std::string, xyLoc>& start = factory_output.stateSupplier.getState(startId);
-            GraphState<std::string, xyLoc>& goal = factory_output.stateSupplier.getState(goalId); 
+            GraphState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId);
+            GraphState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId); 
             auto solution = factory_output.search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc>* x) {
+                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}),
