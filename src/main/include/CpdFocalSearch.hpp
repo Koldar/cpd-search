@@ -46,30 +46,24 @@ namespace pathfinding::search {
          * @param epsilon suboptimality bound to test
          * @param openListCapacity 
          */
-        CpdFocalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon, unsigned int openListCapacity = 1024, unsigned int focalListCapacity = 1024) : 
+        CpdFocalSearch(std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>> openList, std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>> focalList, CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon) : 
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
-            openList{nullptr}, focalList{nullptr} {
+            openList{openList}, focalList{focalList} {
 
             if (!heuristic.isConsistent()) {
                 throw cpp_utils::exceptions::InvalidArgumentException{"the heuristic is not consistent!"};
             }
-            this->openList = new StaticPriorityQueue<GraphStateReal>{openListCapacity, true};
-            this->focalList = new StaticPriorityQueue<GraphStateReal>{focalListCapacity, true};
         }
 
         ~CpdFocalSearch() {
             this->tearDownSearch();
-            delete this->openList;
-            delete this->focalList;
         }
         //the class cannot be copied whatsoever
         CpdFocalSearch(const CpdFocalSearchInstance& other) = delete;
         CpdFocalSearchInstance& operator=(const CpdFocalSearch& other) = delete;
 
-        CpdFocalSearch(CpdFocalSearchInstance&& other): heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager}, openList{other.openList}  {
-            other.openList = nullptr;
-            other.focalList = nullptr;
+        CpdFocalSearch(CpdFocalSearchInstance&& other): heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager} {
         }
 
         CpdFocalSearchInstance& operator=(CpdFocalSearchInstance&& other) {
@@ -80,9 +74,6 @@ namespace pathfinding::search {
             this->pruner = other.pruner;
             this->epsilon = other.epsilon;
             this->cpdManager = other.cpdManager;
-            this->openList = other.openList;
-            other.openList = nullptr;
-            other.focalList = nullptr;
             return *this;
         }
 
@@ -105,11 +96,11 @@ namespace pathfinding::search {
         CpdFocalHeuristic<GraphStateReal, G, V>& heuristic;
         IGoalChecker<GraphStateReal>& goalChecker;
         CpdFocalExpander<G, V>& expander;
-        IStateSupplier<GraphStateReal, nodeid_t>& supplier;
+        IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier;
         IStatePruner<GraphStateReal>& pruner;
 
-        StaticPriorityQueue<GraphStateReal>* openList;
-        StaticPriorityQueue<GraphStateReal>* focalList;
+        std::shared_ptr<StaticPriorityQueue<GraphStateReal>> openList;
+        std::shared_ptr<StaticPriorityQueue<GraphStateReal>> focalList;
     protected:
         virtual cost_t computeF(cost_t g, cost_t h) const {
             return g + h;
@@ -127,13 +118,82 @@ namespace pathfinding::search {
         }
         virtual void tearDownSearch() {
         }
+
+        /**
+         * @brief generate the states between from and to by following the cpd path
+         * 
+         * In the return value neither @c from and @¢ to are present, only the interstates.
+         * 
+         * This means that if `from` is adjacent to `to` we will return.
+         * 
+         * @pre
+         *  @li from != to
+         * 
+         * The vector return starts from the state near `from` and go up until it reaches the previous state of `to`
+         * 
+         * @param from the search node where we start
+         * @param to the search node where we need to go
+         * @return vectorplus<const GraphStateReal*> list of possibly new state generated going from @c from to @c to
+         */
+        virtual vectorplus<const GraphStateReal*> connectStates(const GraphStateReal* from, const GraphStateReal* to) const {
+            vectorplus<const GraphStateReal*> result{};
+            const GraphStateReal* tmp = from;
+            //result contains only the nodes between from and to, from and to excluded
+            if (from->getPosition() == to->getPosition()) {
+                return result;
+            }
+            while(true) {
+                moveid_t nextMove;
+                nodeid_t nextNode;
+                cost_t moveCost;
+                if (!this->cpdManager.getFirstMove(tmp->getPosition(), to->getPosition(), nextMove, nextNode, moveCost)) {
+                    throw cpp_utils::exceptions::ImpossibleException{};
+                }
+                GraphStateReal* tmp2 = &this->supplier.getState(nextNode, generation_enum_t::FROM_SOLUTION);
+                tmp2->setParent(const_cast<GraphStateReal*>(tmp));
+                if (tmp2->getPosition() == to->getPosition()) {
+                    goto exit;
+                }
+                
+                result.add(tmp2);
+                tmp = tmp2;
+            }
+
+            exit:;
+            return result;
+        }
         virtual std::unique_ptr<ISolutionPath<const GraphStateReal*, const GraphStateReal&>> buildSolutionFromGoalFetched(const GraphStateReal& start, const GraphStateReal& actualGoal, const GraphStateReal* goal) {
             auto result = new StateSolutionPath<GraphStateReal>{};
-            const GraphStateReal* tmp = &actualGoal;
-            while (tmp != nullptr) {
-                result->addHead(tmp);
-                tmp = tmp->getParent();
+
+            if (actualGoal == start) {
+                result->add(&start);
+            } else {
+                const GraphStateReal* cpdPathEnd = &actualGoal;
+                const GraphStateReal* cpdPathStart = actualGoal.getParent();
+                
+                while (cpdPathStart != nullptr) {
+                    info("need to connect path from", *cpdPathStart, " to ", *cpdPathEnd);
+                    //we need to rebuild the path, since the search has jumped from a loation to another one via the CPD.
+                    //specifically, we need to connect "tmp" with the head of the building solution, with the CPD until the CPD finds such head
+                    debug("adding", *cpdPathEnd, "in solution");
+                    result->addHead(cpdPathEnd);
+                    vectorplus<const GraphStateReal*> connect = this->connectStates(cpdPathStart, cpdPathEnd);
+                    for (auto s : connect.reverse()) {
+                        debug("adding ", s, "in solution");
+                        result->addHead(s);
+                    }
+
+                    cpdPathEnd = cpdPathStart;
+                    cpdPathStart = cpdPathStart->getParent();
+                }
+                //add the start
+                result->addHead(cpdPathEnd);
             }
+
+            for (auto s: *result) {
+                info("s is", *s, "and g is", s->getG());
+            }
+            
             return std::unique_ptr<StateSolutionPath<GraphStateReal>>{result};
         }
         virtual cost_t getSolutionCostFromGoalFetched(const GraphStateReal& start, const GraphStateReal& actualGoal, const GraphStateReal* goal) const {
@@ -281,6 +341,7 @@ namespace pathfinding::search {
                     std::pair<GraphStateReal&, cost_t> pair = this->expander.getSuccessor(*currentState, nextMove, this->supplier);
                     GraphStateReal& successor = pair.first;
                     cost_t actionCost = pair.second;
+                    successor.setSource(generation_enum_t::FROM_EARLY_TERMINATION);
                     successor.setParent(const_cast<GraphStateReal*>(currentState));
                     successor.setG(currentState->getG() + actionCost);
                     successor.setH(cost_t::INFTY);
@@ -301,6 +362,8 @@ namespace pathfinding::search {
         template <typename G, typename V>
         struct output_t {
             public:
+                std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>> openList;
+                std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>> focalList;
                 /**
                  * @brief place where the goal checker is located in memory
                  * 
@@ -339,14 +402,19 @@ namespace pathfinding::search {
                 output_t(
                     const CpdManager<G, V>& cpdManager,
                     const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph,
-                    cost_t epsilon
+                    cost_t epsilon,
+                    size_t openListCapacity = 1024,
+                    size_t focalListCapacity = 1024
                     ): 
+                    openList{new StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>{openListCapacity, true}},
+                    focalList{new StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>{focalListCapacity, true}},
                     heuristic{cpdManager, perturbatedGraph},
                     goalChecker{}, 
-                    stateSupplier{perturbatedGraph}, 
+                    stateSupplier{perturbatedGraph, this->openList, this->focalList}, 
                     stateExpander{perturbatedGraph}, 
                     statePruner{},
-                    search{this->heuristic, this->goalChecker, this->stateSupplier, this->stateExpander, this->statePruner, this->heuristic.getCpdManager(), epsilon, 1024} {
+                    search{this->openList, this->focalList, this->heuristic, this->goalChecker, this->stateSupplier, this->stateExpander, this->statePruner, this->heuristic.getCpdManager(), epsilon}
+                     {
                 }
 
                 output_t(const output_t& other) = delete;

@@ -5,6 +5,7 @@
 #include <cpp-utils/igraph.hpp>
 #include <pathfinding-utils/IHeuristic.hpp>
 #include <compressed-path-database/CpdManager.hpp>
+#include <cpp-utils/exceptions.hpp>
 #include "PerturbatedCost.hpp"
 #include "CpdHeuristic.hpp"
 
@@ -26,7 +27,7 @@ namespace pathfinding::search {
         typedef CpdFocalHeuristic<STATE, G, V> CpdFocalHeuristicInstance;
     private:
         /**
-         * @brief for each vertex ni the graph, represents the cost we need to pay to go from the given node till the source of the first perturbation, if we were to follow the CPD path
+         * @brief for each vertex in the graph, represents the cost we need to pay to go from the given node till the source of the first perturbation, if we were to follow the CPD path
          * 
          * cost_t::INFTY if the cost has not been initialized yet
          */
@@ -45,11 +46,6 @@ namespace pathfinding::search {
          * UB not set before calling CpdHeuristic::getHeuristic
          */
         mutable cost_t lastEarliestPerturbationSourceIdCost;
-        /**
-         * @brief the perturbated graph we're operating in
-         * 
-         */
-        const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph;
     public:
         /**
          * @brief Construct a new Cpd Heuristic object
@@ -60,7 +56,7 @@ namespace pathfinding::search {
         CpdFocalHeuristic(const cpd::CpdManager<G, V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph): 
             CpdHeuristic<STATE, G, V>{cpdManager, perturbatedGraph},
             perturbatedPathCostCache{cpdManager.getReorderedGraph().size(), cost_t::INFTY},
-            perturbatedSourceIdCache{cpdManager.getReorderedGraph().size(), cost_t::INFTY},
+            perturbatedSourceIdCache{cpdManager.getReorderedGraph().size(), 0},
             lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY}
             {
         }
@@ -179,14 +175,23 @@ namespace pathfinding::search {
         }
     public:
         virtual MemoryConsumption getByteMemoryOccupied() const {
-            throw cpp_utils::exceptions::NotYetImplementedException{};
+            throw cpp_utils::exceptions::NotYetImplementedException{"not mplemented"};
         }
     public:
         virtual void cleanup() {
-            CpdHeuristic<STATE, G, V>::cleanUp();
-            this->earliestPerturbationSourceIdCostCache.fill(cost_t::INFTY);
+            CpdHeuristic<STATE, G, V>::cleanup();
+            this->perturbatedPathCostCache.fill(cost_t::INFTY);
+            this->perturbatedSourceIdCache.fill(0);
+            this->lastEarliestPerturbationSourceId = 0;
+            this->lastEarliestPerturbationSourceIdCost = cost_t::INFTY;
         }
     public:
+        nodeid_t getPerturbatedSourceId(nodeid_t node) const {
+            return this->perturbatedSourceIdCache[node];
+        }
+        cost_t getPerturbatedPathCost(nodeid_t node) const {
+            return this->perturbatedPathCostCache[node];
+        }
         /**
          * @brief after the last call of the heuristic, represent sthe earliest perturbations
          * 

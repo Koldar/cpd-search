@@ -47,7 +47,7 @@ namespace pathfinding::search {
             return a.cost == b.cost && a.perturbated == b.perturbated;
         }
         friend std::ostream& operator <<(std::ostream& ss, const PerturbatedCost& a) {
-            ss << "{" << a.cost << (a.perturbated ? "perturbated" : "unaffected") << "}";
+            ss << "{" << a.cost << " " << (a.perturbated ? "perturbated" : "unaffected") << "}";
             return ss;
         }
     public:
