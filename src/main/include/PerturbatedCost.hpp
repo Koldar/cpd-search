@@ -1,7 +1,11 @@
 #ifndef _CPD_SEARCH_PERTURBATED_COST_HEADER__
 #define _CPD_SEARCH_PERTURBATED_COST_HEADER__
 
+#include <pathfinding-utils/types.hpp>
+
 namespace pathfinding::search {
+
+    using namespace pathfinding;
 
     /**
      * @brief Represents an edge cost perturbated
