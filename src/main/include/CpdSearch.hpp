@@ -17,7 +17,7 @@
 namespace pathfinding::search {
 
     using namespace cpp_utils;
-    using namespace cpd;
+    using namespace compressed_path_database;
 
     template <typename G, typename V>
     std::unique_ptr<IImmutableGraph<G, V, PerturbatedCost>> getPerturbatedMap(const IImmutableGraph<G,V, cost_t>& graph, const cpp_utils::vectorplus<Edge<cost_t>>& perturbations) {

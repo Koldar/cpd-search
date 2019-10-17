@@ -15,7 +15,7 @@
 using namespace pathfinding::search;
 using namespace pathfinding::maps;
 using namespace cpp_utils::graphs;
-using namespace cpd;
+using namespace compressed_path_database;
 
 
 SCENARIO("test CpdHeuristic") {

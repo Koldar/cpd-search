@@ -2,6 +2,20 @@
 #define _CPD_SEARCH_PERTURBATED_COST_HEADER__
 
 #include <pathfinding-utils/types.hpp>
+#include <cstdio>
+
+namespace pathfinding::search {
+
+    class PerturbatedCost;
+
+}
+
+namespace cpp_utils::serializers {
+
+    void saveToFile(FILE* f, const pathfinding::search::PerturbatedCost& p);
+    pathfinding::search::PerturbatedCost& loadFromFile(FILE* f, pathfinding::search::PerturbatedCost& result);
+    
+}
 
 namespace pathfinding::search {
 
@@ -12,6 +26,8 @@ namespace pathfinding::search {
      * 
      */
     class PerturbatedCost {
+        friend void cpp_utils::serializers::saveToFile(FILE* f, const PerturbatedCost& p);
+        friend PerturbatedCost& cpp_utils::serializers::loadFromFile(FILE* f, PerturbatedCost& result);
     private:
         /**
          * @brief the cost of the edge
@@ -24,6 +40,13 @@ namespace pathfinding::search {
          */
         bool perturbated;
     public:
+        /**
+         * @brief Internal do not use it
+         * 
+         */
+        PerturbatedCost() : cost{0}, perturbated{false} {
+
+        }
         PerturbatedCost(cost_t cost, bool perturbated): cost{cost}, perturbated{perturbated} {
 
         }
@@ -66,6 +89,30 @@ namespace pathfinding::search {
         }
         bool isUnaffected() const {
             return !this->perturbated;
+        }
+    };
+
+}
+
+namespace std {
+
+    template <>
+    struct hash<pathfinding::search::PerturbatedCost> {
+        size_t operator() (const pathfinding::search::PerturbatedCost& e) const {
+            size_t seed = 0;
+            boost::hash_combine(seed, e.getCost());
+            boost::hash_combine(seed, e.isPerturbated());
+            return seed;
+        }
+    };
+}
+
+namespace boost {
+
+    template <>
+    struct hash<pathfinding::search::PerturbatedCost> {
+        size_t operator() (const pathfinding::search::PerturbatedCost& e) const {
+            return ::std::hash<pathfinding::search::PerturbatedCost>{}(e);
         }
     };
 

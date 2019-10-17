@@ -31,7 +31,7 @@ namespace pathfinding::search {
          * @brief manager for 
          * 
          */
-        const cpd::CpdManager<G, V>& cpdManager;
+        const compressed_path_database::CpdManager<G, V>& cpdManager;
         /**
          * @brief cache for H value already computed
          * 
@@ -84,7 +84,7 @@ namespace pathfinding::search {
          * @param cpdManager 
          * @param perturbatedGraph the graph we're going to use to fetch the costs fo the edges on the perturbated graph
          */
-        CpdHeuristic(const cpd::CpdManager<G, V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph): 
+        CpdHeuristic(const compressed_path_database::CpdManager<G, V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph): 
             cpdManager{cpdManager}, 
             hOriginalCache{cpdManager.getReorderedGraph().numberOfVertices(), cost_t::INFTY}, 
             hPerturbatedCache{cpdManager.getReorderedGraph().numberOfVertices(), cost_t::INFTY},
@@ -92,7 +92,7 @@ namespace pathfinding::search {
             perturbatedGraph{perturbatedGraph} {
 
             if (!cpdManager.isCpdLoaded()) {
-                throw cpp_utils::exceptions::InvalidStateException<cpd::CpdManager<G, V>>{cpdManager};
+                throw cpp_utils::exceptions::InvalidStateException<compressed_path_database::CpdManager<G, V>>{cpdManager};
             }
         }
         CpdHeuristic(const CpdHeuristicInstance& other) = delete;
@@ -218,7 +218,7 @@ namespace pathfinding::search {
             critical("the cache is ", this->hOriginalCache);
             return this->hOriginalCache.filter([&](cost_t h) {return h.isNotInfinity();}).size();
         }
-        const cpd::CpdManager<G, V>& getCpdManager() const {
+        const compressed_path_database::CpdManager<G, V>& getCpdManager() const {
             return this->cpdManager;
         }
     };

@@ -53,7 +53,7 @@ namespace pathfinding::search {
          * @param cpdManager 
          * @param perturbatedGraph the graph we're going to use to fetch the costs fo the edges on the perturbated graph
          */
-        CpdFocalHeuristic(const cpd::CpdManager<G, V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph): 
+        CpdFocalHeuristic(const compressed_path_database::CpdManager<G, V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph): 
             CpdHeuristic<STATE, G, V>{cpdManager, perturbatedGraph},
             perturbatedPathCostCache{cpdManager.getReorderedGraph().size(), cost_t::INFTY},
             perturbatedSourceIdCache{cpdManager.getReorderedGraph().size(), 0},

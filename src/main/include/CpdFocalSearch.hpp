@@ -10,7 +10,7 @@
 namespace pathfinding::search {
 
     using namespace cpp_utils;
-    using namespace cpd;
+    using namespace compressed_path_database;
 
     
 
