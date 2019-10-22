@@ -14,7 +14,7 @@ set(THEPROJECT_OUTPUT "SO")
 
 #a spaced separated list of shared libraries names that will be used when linking the main project. 
 #Each library needs to be installed on the system. Each library should be declared as a quoted string
-set(THEPROJECT_REQUIRED_SHARED_LIBRARIES "boost_system" "boost_filesystem" "cpp-utils" "pathfinding-utils" "compressed-path-database" "metis" "dl" "m")
+set(THEPROJECT_REQUIRED_SHARED_LIBRARIES "gomp" "boost_system" "boost_filesystem" "cpp-utils" "pathfinding-utils" "compressed-path-database" "metis" "dl" "m")
 
 #Represents the library official name of an entry in THEPROJECT_REQUIRED_SHARED_LIBRARIES.
 #This has been done because sometimes a library soname is not the library common nam e (e.g., "m" is "math")
@@ -78,7 +78,7 @@ set(STANDARD_CMAKE_FILE_ALTERED "false")
 
 #If you have altered the standard CMAKE file standard process, consider explaining in this variable what have you changed to help future maintainers!
 #The variable is ignored if "STANDARD_CMAKE_FILE_ALTERED" is false
-set(CMAKE_FILE_ALTERED_COMMAND "")
+set(CMAKE_FILE_ALTERED_COMMAND "Added USE_PARALLELISM macro ")
 
 #Represents the version of the building process version. You can use this value to understand what this cmake building process can and can't do
 #For example in building processes before the "1.0" "sudo make install" of exectuables wasn't supported.
@@ -244,6 +244,7 @@ if(PARENTDIR STREQUAL "Debug")
     add_definitions(-DQUICK_LOG=${THEPROJECT_DEBUG_LOG_LEVEL} -DDEBUG -fno-stack-protector )
 endif(PARENTDIR STREQUAL "Debug")
 #add common definitions
+add_definitions(-DUSE_PARALLELISM -fopenmp)
 #I perfer fmax-errors=1 instead of -Wfatal-errors becuase the second won't show the compiler notes of the error, but the first will
 add_definitions(-fmax-errors=1 -std=c++11 -Werror)
 

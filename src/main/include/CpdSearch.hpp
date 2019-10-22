@@ -366,22 +366,28 @@ namespace pathfinding::search {
                     stateExpander{perturbatedGraph}, 
                     statePruner{},
                     search{this->heuristic, this->goalChecker, this->stateSupplier, this->stateExpander, this->statePruner, this->heuristic.getCpdManager(), epsilon, 1024} {
+                        critical("output factory constructor correctly called!");
                 }
 
                 output_t(const output_t& other) = delete;
                 output_t(output_t&& other) noexcept : search{::std::move(other.search)}, heuristic(std::move(other.heuristic)), goalChecker(std::move(other.goalChecker)), stateSupplier(std::move(other.stateSupplier)), stateExpander(std::move(other.stateExpander)), statePruner(std::move(other.statePruner)) {
+                    critical("output factory move constructor correctly called!");
                 }
                 output_t& operator =(const output_t& other) = delete;
                 output_t& operator =(output_t&& other) {
+                    critical("calling factory move =!");
                     this->search = std::move(other.search);
                     this->heuristic = std::move(other.heuristic);
                     this->goalChecker = std::move(other.goalChecker);
                     this->stateSupplier = std::move(other.stateSupplier);
                     this->stateExpander = std::move(other.stateExpander);
                     this->statePruner = std::move(other.statePruner);
+
+                    critical("output factory move = correctly called!");
                     return *this;
                 }
                 virtual ~output_t() {
+                    critical("output destructed!");
                 }
         };
     public:
@@ -398,6 +404,7 @@ namespace pathfinding::search {
          */
         template <typename G, typename V>
         output_t<G,V> get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t epsilon) {
+            critical("generating output...");
             return output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,
