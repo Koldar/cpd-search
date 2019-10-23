@@ -50,7 +50,7 @@ namespace pathfinding::search {
         PerturbatedCost(cost_t cost, bool perturbated): cost{cost}, perturbated{perturbated} {
 
         }
-        ~PerturbatedCost() {
+        virtual ~PerturbatedCost() {
 
         }
         PerturbatedCost(const PerturbatedCost& other): cost{other.cost}, perturbated{other.perturbated} {

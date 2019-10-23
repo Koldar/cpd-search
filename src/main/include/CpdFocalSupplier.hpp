@@ -27,7 +27,7 @@ namespace pathfinding::search {
         CpdFocalSupplier(const IImmutableGraph<G, V, E>& graph, const std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>>& openList, const std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>>& focalList) : Super{graph}, openList{openList}, focalList{focalList} {
 
         }
-        ~CpdFocalSupplier() {
+        virtual ~CpdFocalSupplier() {
 
         }
         CpdFocalSupplier(const CpdFocalSupplierInstance& other) = delete;

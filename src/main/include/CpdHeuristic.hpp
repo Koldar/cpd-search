@@ -91,9 +91,11 @@ namespace pathfinding::search {
             lastPathActualCost{cost_t::INFTY}, lastPathOriginalCost{cost_t::INFTY}, 
             perturbatedGraph{perturbatedGraph} {
 
+            debug("CPDHeuristic constructor start");
             if (!cpdManager.isCpdLoaded()) {
                 throw cpp_utils::exceptions::InvalidStateException<compressed_path_database::CpdManager<G, V>>{cpdManager};
             }
+            debug("CPDHeuristic constructor end");
         }
         CpdHeuristic(const CpdHeuristicInstance& other) = delete;
         CpdHeuristic(CpdHeuristicInstance&& h): 
@@ -113,7 +115,7 @@ namespace pathfinding::search {
             this->perturbatedGraph = h.perturbatedGraph;
             return *this;
         }
-        ~CpdHeuristic() {
+        virtual ~CpdHeuristic() {
             debug("destroy cpd heuristic at", this);
         }
     public:
@@ -215,7 +217,7 @@ namespace pathfinding::search {
          * @return size_t 
          */
         size_t getCachedElementsNumber() const {
-            critical("the cache is ", this->hOriginalCache);
+            debug("the cache is ", this->hOriginalCache);
             return this->hOriginalCache.filter([&](cost_t h) {return h.isNotInfinity();}).size();
         }
         const compressed_path_database::CpdManager<G, V>& getCpdManager() const {

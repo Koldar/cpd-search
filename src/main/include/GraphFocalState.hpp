@@ -81,7 +81,7 @@ namespace pathfinding::search {
             focalListPriority{0}, lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY} {
 
         }
-        ~GraphFocalState() {
+        virtual ~GraphFocalState() {
 
         }
         GraphFocalState(const GraphFocalStateInstance& other) = delete;

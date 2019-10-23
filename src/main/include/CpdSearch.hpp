@@ -80,6 +80,7 @@ namespace pathfinding::search {
     template <typename G, typename V>
     class CpdSearch: public IMemorable, public ISearchAlgorithm<GraphState<G, V, PerturbatedCost>, const GraphState<G, V, PerturbatedCost>*, const GraphState<G, V, PerturbatedCost>&> {
         typedef GraphState<G, V, PerturbatedCost> GraphStateReal;
+        typedef CpdSearch<G, V> CpdSearchInstance;
     public:
         /**
          * @brief Construct a new Time Cpd Search object
@@ -97,13 +98,15 @@ namespace pathfinding::search {
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
             openList{nullptr} {
+                debug("CpdSearch constructor started!");
                 if (!heuristic.isConsistent()) {
                     throw cpp_utils::exceptions::InvalidArgumentException{"the heuristic is not consistent!"};
                 }
                 this->openList = new StaticPriorityQueue<GraphStateReal>{openListCapacity, true};
+                debug("CpdSearhc constructor ended!");
             }
 
-        ~CpdSearch() {
+        virtual ~CpdSearch() {
             this->tearDownSearch();
             delete this->openList;
         }
@@ -149,12 +152,8 @@ namespace pathfinding::search {
         IStateSupplier<GraphStateReal, nodeid_t>& supplier;
         IStatePruner<GraphStateReal>& pruner;
         StaticPriorityQueue<GraphStateReal>* openList;
-    protected:
-        virtual cost_t computeF(cost_t g, cost_t h) const {
-            return g + h;
-        }
-    protected:
-        virtual void setupSearch(const GraphStateReal& start, const GraphStateReal* goal) {
+    public:
+        virtual void setupSearch(const GraphStateReal* start, const GraphStateReal* goal) {
             //cleanup before running since at the end we may want to poll information on the other structures
             this->heuristic.cleanup();
             this->expander.cleanup();
@@ -164,10 +163,16 @@ namespace pathfinding::search {
         }
         virtual void tearDownSearch() {
         }
+    protected:
+        virtual cost_t computeF(cost_t g, cost_t h) const {
+            return g + h;
+        }
+    protected:
         virtual std::unique_ptr<ISolutionPath<const GraphStateReal*, const GraphStateReal&>> buildSolutionFromGoalFetched(const GraphStateReal& start, const GraphStateReal& actualGoal, const GraphStateReal* goal) {
             auto result = new StateSolutionPath<GraphStateReal>{};
             const GraphStateReal* tmp = &actualGoal;
             while (tmp != nullptr) {
+                debug("adding ", tmp, "to solution");
                 result->addHead(tmp);
                 tmp = tmp->getParent();
             }
@@ -195,7 +200,7 @@ namespace pathfinding::search {
             this->openList->push(start);
             while (!this->openList->isEmpty()) {
                 GraphStateReal& current = this->openList->peek();
-                info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH());
+                info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH(), " pointer=", &current, "parent pointer=", current.getParent());
 
                 //check if the peeked state is actually a goal
                 if (this->goalChecker.isGoal(current, expectedGoal)) {
@@ -360,22 +365,22 @@ namespace pathfinding::search {
                     const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph,
                     cost_t epsilon
                     ): 
-                    heuristic{cpdManager, perturbatedGraph},
                     goalChecker{}, 
+                    heuristic{cpdManager, perturbatedGraph},
                     stateSupplier{perturbatedGraph}, 
                     stateExpander{perturbatedGraph}, 
                     statePruner{},
                     search{this->heuristic, this->goalChecker, this->stateSupplier, this->stateExpander, this->statePruner, this->heuristic.getCpdManager(), epsilon, 1024} {
-                        critical("output factory constructor correctly called!");
+                        debug("output factory constructor correctly called!");
                 }
 
                 output_t(const output_t& other) = delete;
                 output_t(output_t&& other) noexcept : search{::std::move(other.search)}, heuristic(std::move(other.heuristic)), goalChecker(std::move(other.goalChecker)), stateSupplier(std::move(other.stateSupplier)), stateExpander(std::move(other.stateExpander)), statePruner(std::move(other.statePruner)) {
-                    critical("output factory move constructor correctly called!");
+                    debug("output factory move constructor correctly called!");
                 }
                 output_t& operator =(const output_t& other) = delete;
                 output_t& operator =(output_t&& other) {
-                    critical("calling factory move =!");
+                    debug("calling factory move =!");
                     this->search = std::move(other.search);
                     this->heuristic = std::move(other.heuristic);
                     this->goalChecker = std::move(other.goalChecker);
@@ -383,11 +388,11 @@ namespace pathfinding::search {
                     this->stateExpander = std::move(other.stateExpander);
                     this->statePruner = std::move(other.statePruner);
 
-                    critical("output factory move = correctly called!");
+                    debug("output factory move = correctly called!");
                     return *this;
                 }
                 virtual ~output_t() {
-                    critical("output destructed!");
+                    debug("output destructed!");
                 }
         };
     public:
@@ -404,7 +409,7 @@ namespace pathfinding::search {
          */
         template <typename G, typename V>
         output_t<G,V> get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t epsilon) {
-            critical("generating output...");
+            debug("generating output...");
             return output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,

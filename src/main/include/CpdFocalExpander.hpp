@@ -24,7 +24,7 @@ namespace pathfinding::search {
             this->graph = other.graph;
             return *this;
         }
-        ~CpdFocalExpander() {
+        virtual ~CpdFocalExpander() {
 
         }
     public:

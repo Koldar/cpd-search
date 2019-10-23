@@ -56,7 +56,7 @@ namespace pathfinding::search {
             }
         }
 
-        ~CpdFocalSearch() {
+        virtual ~CpdFocalSearch() {
             this->tearDownSearch();
         }
         //the class cannot be copied whatsoever
@@ -105,8 +105,8 @@ namespace pathfinding::search {
         virtual cost_t computeF(cost_t g, cost_t h) const {
             return g + h;
         }
-    protected:
-        virtual void setupSearch(const GraphStateReal& start, const GraphStateReal* goal) {
+    public:
+        virtual void setupSearch(const GraphStateReal* start, const GraphStateReal* goal) {
             //cleanup before running since at the end we may want to poll information on the other structures
             this->heuristic.cleanup();
             this->expander.cleanup();
@@ -118,6 +118,7 @@ namespace pathfinding::search {
         }
         virtual void tearDownSearch() {
         }
+    protected:
 
         /**
          * @brief generate the states between from and to by following the cpd path

@@ -78,7 +78,7 @@ namespace pathfinding::search {
             this->perturbatedSourceIdCache = ::std::move(h.perturbatedSourceIdCache);
             return *this;
         }
-        ~CpdFocalHeuristic() {
+        virtual ~CpdFocalHeuristic() {
             debug("destroy cpd focal heuristic at", this);
         }
     public:
