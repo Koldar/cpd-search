@@ -106,6 +106,9 @@ namespace pathfinding::search {
             return g + h;
         }
     public:
+        virtual std::string getName() const {
+            return "CPD-Focal-Search";
+        }
         virtual void setupSearch(const GraphStateReal* start, const GraphStateReal* goal) {
             //cleanup before running since at the end we may want to poll information on the other structures
             this->heuristic.cleanup();

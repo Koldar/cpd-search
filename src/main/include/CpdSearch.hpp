@@ -153,6 +153,9 @@ namespace pathfinding::search {
         IStatePruner<GraphStateReal>& pruner;
         StaticPriorityQueue<GraphStateReal>* openList;
     public:
+        virtual std::string getName() const {
+            return "CPD-Search";
+        }
         virtual void setupSearch(const GraphStateReal* start, const GraphStateReal* goal) {
             //cleanup before running since at the end we may want to poll information on the other structures
             this->heuristic.cleanup();
@@ -408,9 +411,9 @@ namespace pathfinding::search {
          * @return cpd search algorithm
          */
         template <typename G, typename V>
-        output_t<G,V> get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t epsilon) {
+        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t epsilon) {
             debug("generating output...");
-            return output_t<G, V>{
+            return new output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,
                 epsilon
