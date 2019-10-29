@@ -327,9 +327,6 @@ namespace pathfinding::search {
 
         }
     private:
-        cost_t getheuristic(const GraphStateReal& state, const GraphStateReal* expectedGoal) {
-
-        }
         const GraphStateReal* earlyTerminate(const GraphStateReal& state, const GraphStateReal* expectedGoal) {
             moveid_t nextMove;
             nodeid_t nextVertex;
