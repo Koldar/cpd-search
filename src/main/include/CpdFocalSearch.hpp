@@ -450,8 +450,8 @@ namespace pathfinding::search {
          * @return cpd search algorithm
          */
         template <typename G, typename V>
-        output_t<G,V> get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t epsilon) {
-            return output_t<G, V>{
+        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t epsilon) {
+            return new output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,
                 epsilon

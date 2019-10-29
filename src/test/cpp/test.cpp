@@ -942,10 +942,10 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
             start.getPayload();
-            auto solution = factory_output.search.search(start, goal, false, false);
+            auto solution = factory_output->search.search(start, goal, false, false);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
@@ -959,9 +959,9 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
             xyLoc goalLoc{1,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
-            auto solution = factory_output.search.search(start, goal, false, true);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
@@ -975,9 +975,9 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
             xyLoc goalLoc{0,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
-            auto solution = factory_output.search.search(start, goal, false, true);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
@@ -991,9 +991,9 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
             xyLoc goalLoc{4,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
-            auto solution = factory_output.search.search(start, goal, false, true);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
@@ -1012,9 +1012,9 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
             xyLoc goalLoc{0,4};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
-            auto solution = factory_output.search.search(start, goal, false, true);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(solution->getCost() == 400);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
@@ -1033,9 +1033,9 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
             xyLoc goalLoc{4,4};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
-            auto solution = factory_output.search.search(start, goal, false, true);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
@@ -1056,9 +1056,9 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output.stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output.stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
-            auto solution = factory_output.search.search(start, goal, false, true);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();
@@ -1074,6 +1074,6 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
             REQUIRE(solution->getCost() == (2*141 + 3*100 + 1*200));
         }
 
-        
+        delete factory_output;
     }
 }
