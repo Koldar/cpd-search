@@ -1,16 +1,21 @@
 #include "catch.hpp"
 
+#include <boost/filesystem.hpp>
+
+#include <cpp-utils/adjacentGraph.hpp>
 
 #include <pathfinding-utils/GridMap.hpp>
 #include <pathfinding-utils/MovingAIGridMapReader.hpp>
 #include <pathfinding-utils/GridMapGraphConverter.hpp>
-#include <cpp-utils/adjacentGraph.hpp>
-#include "CpdHeuristic.hpp"
+
 #include <compressed-path-database/CpdManager.hpp>
-#include <boost/filesystem.hpp>
+
+
+#include "CpdHeuristic.hpp"
 #include "CpdSearch.hpp"
 #include "CpdHeuristic.hpp"
 #include "CpdFocalSearch.hpp"
+#include "CountCpdSearchListener.hpp"
 
 using namespace pathfinding::search;
 using namespace pathfinding::maps;
@@ -330,6 +335,8 @@ SCENARIO("test CpdSearch with optimality bound") {
 
         CpdSearchFactory factory{};
         auto factory_output = factory.get(cpdManager, perturbatedGraph, 1);
+        CountCpdSearchListener<std::string, xyLoc> listener{};
+        factory_output->search.setListener(listener);
 
         REQUIRE(g.haveSameVertices(perturbatedGraph));
 
@@ -347,6 +354,7 @@ SCENARIO("test CpdSearch with optimality bound") {
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0})
             ));
             REQUIRE(solution->getCost() == 0);
+            REQUIRE(listener.getNodeExpanded() == 0);
         }
 
         WHEN("start is diagonal goal (no perturbations)") {
@@ -363,6 +371,7 @@ SCENARIO("test CpdSearch with optimality bound") {
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
             ));
             REQUIRE(solution->getCost() == 141);
+            REQUIRE(listener.getNodeExpanded() == 1);
         }
 
         WHEN("start is above goal (no perturbations)") {
@@ -379,6 +388,7 @@ SCENARIO("test CpdSearch with optimality bound") {
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
             ));
             REQUIRE(solution->getCost() == 100);
+            REQUIRE(listener.getNodeExpanded() == 1);
         }
 
         WHEN("start to goal via perturbated edge") {

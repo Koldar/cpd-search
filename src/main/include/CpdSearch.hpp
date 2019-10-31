@@ -1,9 +1,14 @@
 #ifndef _CPD_SEARCH_TIMED_CPD_SEARCH_HEADER__
 #define _CPD_SEARCH_TIMED_CPD_SEARCH_HEADER__
 
+#include <boost/smart_ptr/make_unique.hpp>
+
+#include <cpp-utils/listGraph.hpp>
+#include <cpp-utils/listeners.hpp>
+#include <cpp-utils/Timer.hpp>
+#include <cpp-utils/NumTracker.hpp>
+
 #include <pathfinding-utils/GraphState.hpp>
-#include "CpdHeuristic.hpp"
-#include <compressed-path-database/CpdManager.hpp>
 #include <pathfinding-utils/ISearchAlgorithm.hpp>
 #include <pathfinding-utils/IStatePruner.hpp>
 #include <pathfinding-utils/IStateExpander.hpp>
@@ -11,8 +16,11 @@
 #include <pathfinding-utils/IHeuristic.hpp>
 #include <pathfinding-utils/StandardLocationGoalChecker.hpp>
 #include <pathfinding-utils/StandardStateExpander.hpp>
-#include <boost/smart_ptr/make_unique.hpp>
-#include <cpp-utils/listGraph.hpp>
+
+#include <compressed-path-database/CpdManager.hpp>
+
+#include "CpdHeuristic.hpp"
+
 
 namespace pathfinding::search {
 
@@ -50,6 +58,41 @@ namespace pathfinding::search {
     }
 
     /**
+     * @brief class which listen for events in a CPDSearch run
+     * 
+     * @tparam G 
+     * @tparam V 
+     */
+    template <typename G, typename V>
+    class CpdSearchListener: public ICleanable {
+    public:
+        /**
+         * @brief fired when the search expands a new search node
+         * 
+         * @param s 
+         */
+        virtual void onNodeExpanded(const GraphState<G, V, PerturbatedCost>& s) = 0;
+        /**
+         * @brief fired when the **search** (not other entities like the state suppliers) generates a new search node
+         * 
+         * @param s 
+         */
+        virtual void onNodeGenerated(const GraphState<G, V, PerturbatedCost>& s) = 0;
+        /**
+         * @brief fired when the search start computing the heuristic of something
+         * 
+         * @param s 
+         */
+        virtual void onStartingComputingHeuristic(const GraphState<G, V, PerturbatedCost>& s) = 0;
+        /**
+         * @brief fired when the search ends computing the heuristic of something
+         * 
+         * @param s 
+         */
+        virtual void onEndingComputingHeuristic(const GraphState<G, V, PerturbatedCost>& s) = 0;
+    };
+
+    /**
      * @brief CPD search
      * 
      * Perturbations
@@ -78,9 +121,11 @@ namespace pathfinding::search {
      * @tparam V type of the payload of each vertex in map graph
      */
     template <typename G, typename V>
-    class CpdSearch: public IMemorable, public ISearchAlgorithm<GraphState<G, V, PerturbatedCost>, const GraphState<G, V, PerturbatedCost>*, const GraphState<G, V, PerturbatedCost>&> {
+    class CpdSearch: public IMemorable, public ISearchAlgorithm<GraphState<G, V, PerturbatedCost>, const GraphState<G, V, PerturbatedCost>*, const GraphState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdSearchListener<G, V>> {
         typedef GraphState<G, V, PerturbatedCost> GraphStateReal;
-        typedef CpdSearch<G, V> CpdSearchInstance;
+        typedef CpdSearch<G, V> This;
+        typedef ISingleListenable<CpdSearchListener<G, V>> ThisListener;
+        friend class CpdSearchListener<G, V>;
     public:
         /**
          * @brief Construct a new Time Cpd Search object
@@ -94,7 +139,7 @@ namespace pathfinding::search {
          * @param epsilon suboptimality bound to test
          * @param openListCapacity 
          */
-        CpdSearch(CpdHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, StandardStateExpander<GraphStateReal, G, V, PerturbatedCost, PerturbatedCost::getCost>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon, unsigned int openListCapacity = 1024) : 
+        CpdSearch(CpdHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, StandardStateExpander<GraphStateReal, G, V, PerturbatedCost, PerturbatedCost::getCost>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon, unsigned int openListCapacity = 1024) : ThisListener{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
             openList{nullptr} {
@@ -114,11 +159,13 @@ namespace pathfinding::search {
         CpdSearch(const CpdSearch& other) = delete;
         CpdSearch& operator=(const CpdSearch& other) = delete;
 
-        CpdSearch(CpdSearch&& other): heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager}, openList{other.openList} {
+        CpdSearch(CpdSearch&& other): ThisListener{std::move(other)}, heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager}, openList{other.openList} {
             other.openList = nullptr;
         }
 
         CpdSearch& operator=(CpdSearch&& other) {
+            ThisListener::operator=(::std::move(other));
+
             this->heuristic = other.heuristic;
             this->goalChecker = other.goalChecker;
             this->supplier = other.supplier;
@@ -163,6 +210,8 @@ namespace pathfinding::search {
             this->supplier.cleanup();
             this->pruner.cleanup();
             this->openList->clear();
+            
+            this->listener->cleanup();
         }
         virtual void tearDownSearch() {
         }
@@ -232,6 +281,7 @@ namespace pathfinding::search {
                 }
 
                 current.markAsExpanded();
+                this->fireEvent([&, current](CpdSearchListener<G, V>& l) {l.onNodeExpanded(current); });
 
                 info("computing successors of state ", current, "...");
                 for(auto pair: this->expander.getSuccessors(current, this->supplier)) {
