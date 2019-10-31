@@ -246,7 +246,9 @@ namespace pathfinding::search {
             const GraphStateReal* earlyTerminationState = nullptr;
 
             start.setG(0);
+            this->fireEvent([&, start](CpdSearchListener<G, V>& l) {l.onStartingComputingHeuristic(start); });
             start.setH(this->heuristic.getHeuristic(start, expectedGoal));
+            this->fireEvent([&, start](CpdSearchListener<G, V>& l) {l.onEndingComputingHeuristic(start); });
             start.setF(this->computeF(start.getG(), start.getH()));
 
             this->openList->push(start);
@@ -311,11 +313,15 @@ namespace pathfinding::search {
                     } else {
                         //state is not present in open list. Add to it
                         cost_t gval = current.getG() + current_to_successor_cost;
+                        this->fireEvent([&, successor](CpdSearchListener<G, V>& l) {l.onStartingComputingHeuristic(successor); });
                         cost_t hval = this->heuristic.getHeuristic(successor, expectedGoal);
+                        this->fireEvent([&, successor](CpdSearchListener<G, V>& l) {l.onEndingComputingHeuristic(successor); });
+                        
                         successor.setG(gval);
                         successor.setH(hval);
                         successor.setF(this->computeF(gval, hval));
                         successor.setParent(&current);
+                        this->fireEvent([&, successor](CpdSearchListener<G, V>& l) {l.onNodeGenerated(successor); });
 
                         //we may have a new upperbound of the solution
                         if (upperbound > gval + this->heuristic.getLastPerturbatedCost()) {

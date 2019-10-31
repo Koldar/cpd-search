@@ -12,7 +12,40 @@ namespace pathfinding::search {
     using namespace cpp_utils;
     using namespace compressed_path_database;
 
-    
+    /**
+     * @brief class which listen for events in a CPDSearch run
+     * 
+     * @tparam G 
+     * @tparam V 
+     */
+    template <typename G, typename V>
+    class CpdFocalSearchListener: public ICleanable {
+    public:
+        /**
+         * @brief fired when the search expands a new search node
+         * 
+         * @param s 
+         */
+        virtual void onNodeExpanded(const GraphFocalState<G, V, PerturbatedCost>& s) = 0;
+        /**
+         * @brief fired when the **search** (not other entities like the state suppliers) generates a new search node
+         * 
+         * @param s 
+         */
+        virtual void onNodeGenerated(const GraphFocalState<G, V, PerturbatedCost>& s) = 0;
+        /**
+         * @brief fired when the search start computing the heuristic of something
+         * 
+         * @param s 
+         */
+        virtual void onStartingComputingHeuristic(const GraphFocalState<G, V, PerturbatedCost>& s) = 0;
+        /**
+         * @brief fired when the search ends computing the heuristic of something
+         * 
+         * @param s 
+         */
+        virtual void onEndingComputingHeuristic(const GraphFocalState<G, V, PerturbatedCost>& s) = 0;
+    };
 
     /**
      * @brief CPD Focal search
@@ -20,9 +53,21 @@ namespace pathfinding::search {
      * 
      * Like CPD Search but with some optimizations.
      * 
+     * Successors:
+     * As node successors we put, aside the usual successors, 
+     * the nodes along the cpd path towards the goal just before the earliest perturbation (or the target itself if no
+     * perturbation are present).
+     * 
      * Focal list:
-     * We have an open list **and** a focal list (tuned with \epsilon parameter)
-     * As node successors we put, aside the usual successors, the nodes along the cpd path towards the goal just before the earliest perturbation.
+     * We have an open list, a focal list and a suboptimality bound w (like WA*)
+     * the 2 lists have 2 f functions used to sort the states within them.
+     * f_1: sorts states in open
+     * f_2: sorts states in focal
+     * 
+     * f_1min: the state in open with the least f value (ie., peek);
+     * Focal contains all the states in open which satisfies the condition:
+     * f_1(n) <= w * f_1min
+     * 
      * 
      * @tparam GraphState<G,V> 
      * @tparam G 
@@ -30,7 +75,7 @@ namespace pathfinding::search {
      * @tparam OTHER 
      */
     template <typename G, typename V>
-    class CpdFocalSearch: public IMemorable, public ISearchAlgorithm<GraphFocalState<G, V, PerturbatedCost>, const GraphFocalState<G, V, PerturbatedCost>*, const GraphFocalState<G, V, PerturbatedCost>&> {
+    class CpdFocalSearch: public IMemorable, public ISearchAlgorithm<GraphFocalState<G, V, PerturbatedCost>, const GraphFocalState<G, V, PerturbatedCost>*, const GraphFocalState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdFocalSearchListener<G, V>> {
         typedef GraphFocalState<G, V, PerturbatedCost> GraphStateReal;
         typedef CpdFocalSearch<G, V> CpdFocalSearchInstance;
     public:
@@ -46,7 +91,7 @@ namespace pathfinding::search {
          * @param epsilon suboptimality bound to test
          * @param openListCapacity 
          */
-        CpdFocalSearch(std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>> openList, std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>> focalList, CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon) : 
+        CpdFocalSearch(std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>> openList, std::shared_ptr<StaticPriorityQueue<GraphFocalState<G, V, PerturbatedCost>>> focalList, CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon) : ISingleListenable<CpdFocalSearchListener<G, V>>{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
             openList{openList}, focalList{focalList} {
@@ -63,10 +108,12 @@ namespace pathfinding::search {
         CpdFocalSearch(const CpdFocalSearchInstance& other) = delete;
         CpdFocalSearchInstance& operator=(const CpdFocalSearch& other) = delete;
 
-        CpdFocalSearch(CpdFocalSearchInstance&& other): heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager} {
+        CpdFocalSearch(CpdFocalSearchInstance&& other): ISingleListenable<CpdFocalSearchListener<G, V>>{::std::move(other)}, heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager}, openList{::std::move(other.openList)}, focalList{::std::move(other.focalList)} {
         }
 
         CpdFocalSearchInstance& operator=(CpdFocalSearchInstance&& other) {
+            ISingleListenable<CpdFocalSearchListener<G, V>>::operator=(::std::move(other));
+
             this->heuristic = other.heuristic;
             this->goalChecker = other.goalChecker;
             this->supplier = other.supplier;
@@ -74,6 +121,9 @@ namespace pathfinding::search {
             this->pruner = other.pruner;
             this->epsilon = other.epsilon;
             this->cpdManager = other.cpdManager;
+            this->openList = ::std::move(other.openList);
+            this->focalList = ::std::move(other.focalList);
+
             return *this;
         }
 
@@ -118,6 +168,8 @@ namespace pathfinding::search {
 
             this->openList->clear();
             this->focalList->clear();
+
+            this->listener->cleanup();
         }
         virtual void tearDownSearch() {
         }
@@ -215,8 +267,12 @@ namespace pathfinding::search {
             cost_t upperbound = cost_t::INFTY;
             const GraphStateReal* earlyTerminationState = nullptr;
 
+            GraphStateReal* startPtr = &start;
             start.setG(0);
+            this->fireEvent([startPtr](CpdFocalSearchListener<G, V>& l) {l.onStartingComputingHeuristic(*startPtr); });
             start.setH(this->heuristic.getHeuristic(start, expectedGoal));
+            this->fireEvent([startPtr](CpdFocalSearchListener<G, V>& l) {l.onEndingComputingHeuristic(*startPtr); });
+            
 
             //update lastEarliestPerturbationSourceId
             start.updateEarlyPerturbationInfo(
@@ -227,8 +283,9 @@ namespace pathfinding::search {
             start.setF(this->computeF(start.getG(), start.getH()));
 
             this->openList->push(start);
-            while (!this->openList->isEmpty()) {
+            while (!this->focalList->isEmpty()) {
                 GraphStateReal& current = this->openList->peek();
+                GraphStateReal* currentPtr = &current;
                 info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH());
 
                 //check if the peeked state is actually a goal
@@ -258,6 +315,7 @@ namespace pathfinding::search {
                 }
 
                 current.markAsExpanded();
+                this->fireEvent([currentPtr](CpdFocalSearchListener<G, V>& l) {l.onNodeExpanded(*currentPtr); });
 
                 info("computing successors of state ", current, "...");
                 for(auto pair: this->expander.getSuccessors(current, this->supplier)) {
@@ -285,9 +343,12 @@ namespace pathfinding::search {
                             this->openList->decrease_key(successor);
                         }
                     } else {
+                        GraphStateReal* successorPtr = &successor;
                         //state is not present in open list. Add to it
                         cost_t gval = current.getG() + current_to_successor_cost;
+                        this->fireEvent([successorPtr](CpdFocalSearchListener<G, V>& l) {l.onStartingComputingHeuristic(*successorPtr); });
                         cost_t hval = this->heuristic.getHeuristic(successor, expectedGoal);
+                        this->fireEvent([successorPtr](CpdFocalSearchListener<G, V>& l) {l.onEndingComputingHeuristic(*successorPtr); });
 
                         //update lastEarliestPerturbationSourceId
                         successor.updateEarlyPerturbationInfo(
@@ -299,6 +360,7 @@ namespace pathfinding::search {
                         successor.setH(hval);
                         successor.setF(this->computeF(gval, hval));
                         successor.setParent(&current);
+                        this->fireEvent([successorPtr](CpdFocalSearchListener<G, V>& l) {l.onNodeGenerated(*successorPtr); });
 
 
                         //we may have a new upperbound of the solution
