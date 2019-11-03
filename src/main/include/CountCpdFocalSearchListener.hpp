@@ -4,7 +4,7 @@
 #include <cpp-utils/NumTracker.hpp>
 #include <cpp-utils/Timer.hpp>
 
-#include <cpd-search/CpdFocalSearch.hpp>
+#include "CpdFocalSearch.hpp"
 
 
 namespace pathfinding::search {
