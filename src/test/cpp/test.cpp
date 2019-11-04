@@ -926,6 +926,8 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
          * 3...@@
          * 4..XX.
          * 
+         * top XX = 150
+         * bottom XX=200
          */
 
         // INCLUDE THE CPD

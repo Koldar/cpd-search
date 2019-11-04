@@ -41,7 +41,7 @@ namespace pathfinding::search {
      */
     template <typename G, typename V, typename E>
     class GraphFocalState: public GraphState<G, V, E> {
-        typedef GraphFocalState<G, V, E> GraphFocalStateInstance;
+        typedef GraphFocalState<G, V, E> This;
     private:
         /**
          * @brief if we follow the CPDPath from this search node till the goal, this is the source of the first perturbated edge we encounter
@@ -68,16 +68,16 @@ namespace pathfinding::search {
         virtual ~GraphFocalState() {
 
         }
-        GraphFocalState(const GraphFocalStateInstance& other) = delete;
-        GraphFocalState(GraphFocalStateInstance&& other) : GraphState<G, V, E>{::std::move(other)}, 
+        GraphFocalState(const This& other) = delete;
+        GraphFocalState(This&& other) : GraphState<G, V, E>{::std::move(other)}, 
             source{other.source},
             lastEarliestPerturbationSourceId{other.lastEarliestPerturbationSourceId}, 
             lastEarliestPerturbationSourceIdCost{other.lastEarliestPerturbationSourceIdCost} {
 
         }
 
-        GraphFocalStateInstance& operator =(const GraphFocalStateInstance& other) = delete;
-        GraphFocalStateInstance& operator =(GraphFocalStateInstance&& other) {
+        This& operator =(const This& other) = delete;
+        This& operator =(This&& other) {
             GraphState<G, V, E>::operator =(::std::move(other));
             this->source = other.source;
             this->lastEarliestPerturbationSourceId = other.lastEarliestPerturbationSourceId;
@@ -86,14 +86,14 @@ namespace pathfinding::search {
             return *this;
         }
     public:
-        GraphFocalStateInstance* getParent() {
-            return static_cast<GraphFocalStateInstance*>(this->parent);
+        This* getParent() {
+            return static_cast<This*>(this->parent);
         }
-        const GraphFocalStateInstance* getParent() const {
-            return static_cast<const GraphFocalStateInstance*>(this->parent);
+        const This* getParent() const {
+            return static_cast<const This*>(this->parent);
         }
-        void setParent(GraphFocalStateInstance* parent) {
-            this->parent = static_cast<GraphFocalStateInstance*>(parent);
+        void setParent(This* parent) {
+            this->parent = static_cast<This*>(parent);
         }
     public:
         generation_enum_t getSource() const {
@@ -111,6 +111,26 @@ namespace pathfinding::search {
         }
         cost_t getCostToEarliestPerturbationSourceId() const {
             return this->lastEarliestPerturbationSourceIdCost;
+        }
+    public:
+        friend bool operator ==(const This& a, const This& b) {
+            return a.id == b.id && a.position == b.position;
+        }
+        friend bool operator !=(const This& a, const This& b) {
+            return !(a == b);
+        }
+        friend std::ostream& operator <<(std::ostream& out, const This& state) {
+            out 
+                << "{ id: " 
+                << state.getId() 
+                << " node: " 
+                << state.graph.getVertex(state.getPosition())
+                << " f: "
+                << state.getF()
+                << " g: "
+                << state.getG()
+                << " }";
+            return out;
         }
     };
 

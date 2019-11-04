@@ -130,7 +130,7 @@ namespace pathfinding::search {
             epsilon{epsilon}, cpdManager{cpdManager}
             {
 
-            this->focalList = new decltype(this->focalList){focalListWeight};
+            this->focalList = new FocalList<GraphStateReal, internal::OpenListOrderer<G,V>, internal::FocalListOrderer<G,V>, internal::GraphFocalStateGetCost<G,V>, cost_t>{focalListWeight};
             if (!heuristic.isConsistent()) {
                 throw cpp_utils::exceptions::InvalidArgumentException{"the heuristic is not consistent!"};
             }
@@ -138,6 +138,7 @@ namespace pathfinding::search {
 
         virtual ~CpdFocalSearch() {
             this->tearDownSearch();
+            delete this->focalList;
         }
         //the class cannot be copied whatsoever
         CpdFocalSearch(const This& other) = delete;
@@ -199,7 +200,7 @@ namespace pathfinding::search {
             this->supplier.cleanup();
             this->pruner.cleanup();
 
-            this->focalList->clear();
+            this->focalList->cleanup();
 
             this->listener->cleanup();
         }
@@ -288,6 +289,7 @@ namespace pathfinding::search {
             return actualGoal.getCost();
         }
         virtual const GraphStateReal& performSearch(GraphStateReal& start, const GraphStateReal* expectedGoal) {
+            info("************************* NEW SEARCH *****************************");
             if (expectedGoal != nullptr) {
                 info("starting A*! start = ", start, "goal = ", *expectedGoal);
             } else {
@@ -322,9 +324,14 @@ namespace pathfinding::search {
                 //UPDATE FOCAL LIST
                 bestF = this->focalList->updateFocalWithOpenChanges(bestF);
 
+                DO_ON_DEBUG {
+                    this->focalList->checkFocalInvariant();
+                }
+
                 GraphStateReal& current = this->focalList->peekFromFocal();
                 GraphStateReal* currentPtr = &current;
-                info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH());
+                info("************************* NEW A* STEP *****************************");
+                info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH(), "bestF=", bestF);
 
                 //check if the peeked state is actually a goal
                 if (this->goalChecker.isGoal(current, expectedGoal)) {
@@ -333,7 +340,7 @@ namespace pathfinding::search {
                     goto goal_found;
                 }
 
-                this->focalList->pop();
+                this->focalList->popFromFocal();
                 //current.getF() is also a lowerbound since the heuristic is admissible
                 cost_t lowerbound = current.getF();
                 
@@ -419,12 +426,12 @@ namespace pathfinding::search {
                             earlyTerminationState = &successor;
                         }
 
-                        info("child", successor, "of state ", current, "not present in open list. Add it f=", successor.getF(), "g=", successor.getG(), "h=", successor.getH());
+                        info("child", successor, "of state ", current, "not present in open list. Add it f=", successor.getF(), "g=", successor.getG(), "h=", successor.getH(), "(bestF of focal is", bestF, ")");
                         if (successor.getF() <= this->focalList->getW() * bestF) {
                             //the state should be put in both open and focal
-                            this->openList->pushInOpenAndInFocal(successor);
+                            this->focalList->pushInOpenAndInFocal(successor);
                         } else {
-                            this->openList->pushInOpen(successor);
+                            this->focalList->pushInOpen(successor);
                         }
                         
                     }
