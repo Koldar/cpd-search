@@ -943,7 +943,7 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
         // USE THE FACTORY TO PROVIDE CpdSearch
 
         CpdFocalSearchFactory factory{};
-        auto factory_output = factory.get(cpdManager, perturbatedGraph, 1);
+        auto factory_output = factory.get(cpdManager, perturbatedGraph, 1, 1);
 
         REQUIRE(g.haveSameVertices(perturbatedGraph));
 

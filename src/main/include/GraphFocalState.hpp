@@ -44,21 +44,6 @@ namespace pathfinding::search {
         typedef GraphFocalState<G, V, E> GraphFocalStateInstance;
     private:
         /**
-         * @brief reference to an openlist
-         * 
-         */
-        const std::shared_ptr<StaticPriorityQueue<GraphFocalStateInstance>>& openList;
-        /**
-         * @brief reference to a focal list
-         * 
-         */
-        const std::shared_ptr<StaticPriorityQueue<GraphFocalStateInstance>>& focalList;
-        /**
-         * @brief priority of the node in the focal list
-         * 
-         */
-        priority_t focalListPriority;
-        /**
          * @brief if we follow the CPDPath from this search node till the goal, this is the source of the first perturbated edge we encounter
          * 
          */
@@ -75,10 +60,9 @@ namespace pathfinding::search {
         generation_enum_t source;
         
     public:
-        GraphFocalState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location, const std::shared_ptr<StaticPriorityQueue<GraphFocalStateInstance>>& openList, const std::shared_ptr<StaticPriorityQueue<GraphFocalStateInstance>>& focusList, generation_enum_t source): GraphState<G, V, E>{id, g, location}, 
-            openList{openList}, focalList{focalList}, 
+        GraphFocalState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location, generation_enum_t source): GraphState<G, V, E>{id, g, location}, 
             source{source},
-            focalListPriority{0}, lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY} {
+            lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY} {
 
         }
         virtual ~GraphFocalState() {
@@ -86,7 +70,6 @@ namespace pathfinding::search {
         }
         GraphFocalState(const GraphFocalStateInstance& other) = delete;
         GraphFocalState(GraphFocalStateInstance&& other) : GraphState<G, V, E>{::std::move(other)}, 
-            openList{other.openList}, focalList{other.focalList}, focalListPriority{other.focalListPriority}, 
             source{other.source},
             lastEarliestPerturbationSourceId{other.lastEarliestPerturbationSourceId}, 
             lastEarliestPerturbationSourceIdCost{other.lastEarliestPerturbationSourceIdCost} {
@@ -96,10 +79,7 @@ namespace pathfinding::search {
         GraphFocalStateInstance& operator =(const GraphFocalStateInstance& other) = delete;
         GraphFocalStateInstance& operator =(GraphFocalStateInstance&& other) {
             GraphState<G, V, E>::operator =(::std::move(other));
-            this->openList = other.openList;
-            this->focalList = other.focalList;
             this->source = other.source;
-            this->focalListPriority = other.focalListPriority;
             this->lastEarliestPerturbationSourceId = other.lastEarliestPerturbationSourceId;
             this->lastEarliestPerturbationSourceIdCost = other.lastEarliestPerturbationSourceIdCost;
 
@@ -131,24 +111,6 @@ namespace pathfinding::search {
         }
         cost_t getCostToEarliestPerturbationSourceId() const {
             return this->lastEarliestPerturbationSourceIdCost;
-        }
-        virtual priority_t getPriority(const void* context) const {
-            if (context == this->openList.get()) {
-                return this->priority;
-            } else if (context == this->focalList.get()) {
-                return this->focalListPriority;
-            } else {
-                throw cpp_utils::exceptions::ImpossibleException{"focal is %p open is %p, got %p", this->focalList, this->openList, context};
-            }
-        }
-        virtual void setPriority(const void* context, priority_t p) {
-            if (context == this->openList.get()) {
-                this->priority = p;
-            } else if (context == this->focalList.get()) {
-                this->focalListPriority = p;
-            } else {
-                throw cpp_utils::exceptions::ImpossibleException{"focal is %p open is %p, got %p", this->focalList, this->openList, context};
-            }
         }
     };
 
