@@ -125,7 +125,7 @@ namespace pathfinding::search {
          * @param cpdManager cpd manager that will be used to poll the cpd. It needs to be already loaded
          * @param epsilon suboptimality bound to test
          */
-        CpdFocalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t focalListWeight, cost_t epsilon) : ISingleListenable<CpdFocalSearchListener<G, V>>{},
+        CpdFocalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, double focalListWeight, cost_t epsilon) : ISingleListenable<CpdFocalSearchListener<G, V>>{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager}
             {
@@ -519,7 +519,7 @@ namespace pathfinding::search {
                 output_t(
                     const CpdManager<G, V>& cpdManager,
                     const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph,
-                    cost_t focalListW,
+                    double focalListW,
                     cost_t epsilon
                     ): 
                     heuristic{cpdManager, perturbatedGraph},
@@ -560,7 +560,7 @@ namespace pathfinding::search {
          * @return cpd search algorithm
          */
         template <typename G, typename V>
-        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t focalListW, cost_t epsilon) {
+        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, double focalListW, cost_t epsilon) {
             return new output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,
