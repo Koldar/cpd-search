@@ -125,7 +125,7 @@ namespace pathfinding::search {
          * @param cpdManager cpd manager that will be used to poll the cpd. It needs to be already loaded
          * @param epsilon suboptimality bound to test
          */
-        CpdFocalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t focalListWeight, cost_t epsilon) : ISingleListenable<CpdFocalSearchListener<G, V>>{},
+        CpdFocalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, double focalListWeight, cost_t epsilon) : ISingleListenable<CpdFocalSearchListener<G, V>>{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager}
             {
