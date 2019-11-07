@@ -4,6 +4,8 @@
 #include <pathfinding-utils/types.hpp>
 #include <cstdio>
 
+#include <pathfinding-utils/operators.hpp>
+
 namespace pathfinding::search {
 
     class PerturbatedCost;
@@ -116,6 +118,16 @@ namespace boost {
         }
     };
 
+}
+
+namespace pathfinding {
+
+    template <>
+    struct GetCost<search::PerturbatedCost> {
+        cost_t operator() (const pathfinding::search::PerturbatedCost& e) const {
+            return e.getCost();
+        }
+    };
 }
 
 #endif

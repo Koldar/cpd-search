@@ -366,6 +366,7 @@ namespace pathfinding::search {
                 for(auto pair: this->expander.getSuccessors(current, this->supplier)) {
                     GraphStateReal& successor = pair.first;
                     cost_t current_to_successor_cost = pair.second;
+                    info("handling successor", successor);
 
                     if (this->pruner.shouldPrune(successor)) {
                         info("child", successor, "of state ", current, "should be pruned!");
@@ -376,6 +377,7 @@ namespace pathfinding::search {
                     if (this->focalList->containsInOpen(successor)) {
                         //state inside the open list. Check if we need to update the path
                         cost_t gval = current.getG() + current_to_successor_cost;
+                        info("child", successor, "already present in open list. Check if its g is improved...");
                         if (gval < successor.getG()) {
                             info("child", successor, "of state ", current, "present in open list and has a lower g. update its parent!");
 
@@ -411,7 +413,6 @@ namespace pathfinding::search {
                         successor.setF(this->computeF(gval, hval));
                         successor.setParent(&current);
                         this->fireEvent([successorPtr](CpdFocalSearchListener<G, V>& l) {l.onNodeGenerated(*successorPtr); });
-
 
                         //we may have a new upperbound of the solution
                         if (upperbound > gval + this->heuristic.getLastPerturbatedCost()) {
