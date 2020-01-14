@@ -103,6 +103,9 @@ namespace pathfinding::search {
      * Focal contains all the states in open which satisfies the condition:
      * f_1(n) <= w * f_1min
      * 
+     * criterion in open list: as in CPD search: h is the cpd path of n to t target using the original weights
+     * criterion in focal list: choose the state with highest g value
+     * 
      * 
      * @tparam GraphState<G,V> 
      * @tparam G 
@@ -113,6 +116,25 @@ namespace pathfinding::search {
     class CpdFocalSearch: public IMemorable, public ISearchAlgorithm<GraphFocalState<G, V, PerturbatedCost>, const GraphFocalState<G, V, PerturbatedCost>*, const GraphFocalState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdFocalSearchListener<G, V>> {
         typedef GraphFocalState<G, V, PerturbatedCost> GraphStateReal;
         typedef CpdFocalSearch<G, V> This;
+    private:
+        /**
+         * @brief parameter that allows us to tweak the suboptimality bound of the algorithm
+         * 
+         */
+        cost_t epsilon;
+        /**
+         * @brief manager of cpd
+         * 
+         */
+        const CpdManager<G, V>& cpdManager;
+
+        CpdFocalHeuristic<GraphStateReal, G, V>& heuristic;
+        IGoalChecker<GraphStateReal>& goalChecker;
+        CpdFocalExpander<G, V>& expander;
+        IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier;
+        IStatePruner<GraphStateReal>& pruner;
+
+        FocalList<GraphStateReal, internal::OpenListOrderer<G,V>, internal::FocalListOrderer<G,V>, internal::GraphFocalStateGetCost<G,V>, cost_t>* focalList;
     public:
         /**
          * @brief Construct a new Time Cpd Search object
@@ -125,7 +147,7 @@ namespace pathfinding::search {
          * @param cpdManager cpd manager that will be used to poll the cpd. It needs to be already loaded
          * @param epsilon suboptimality bound to test
          */
-        CpdFocalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, double focalListWeight, cost_t epsilon) : ISingleListenable<CpdFocalSearchListener<G, V>>{},
+        CpdFocalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, const fractional_number<cost_t>& focalListWeight, cost_t epsilon) : ISingleListenable<CpdFocalSearchListener<G, V>>{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager}
             {
@@ -166,25 +188,6 @@ namespace pathfinding::search {
         virtual MemoryConsumption getByteMemoryOccupied() const {
             throw cpp_utils::exceptions::NotYetImplementedException{__func__};
         }
-    private:
-        /**
-         * @brief parameter that allows us to tweak the suboptimality bound of the algorithm
-         * 
-         */
-        cost_t epsilon;
-        /**
-         * @brief manager of cpd
-         * 
-         */
-        const CpdManager<G, V>& cpdManager;
-
-        CpdFocalHeuristic<GraphStateReal, G, V>& heuristic;
-        IGoalChecker<GraphStateReal>& goalChecker;
-        CpdFocalExpander<G, V>& expander;
-        IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier;
-        IStatePruner<GraphStateReal>& pruner;
-
-        FocalList<GraphStateReal, internal::OpenListOrderer<G,V>, internal::FocalListOrderer<G,V>, internal::GraphFocalStateGetCost<G,V>, cost_t>* focalList;
     protected:
         virtual cost_t computeF(cost_t g, cost_t h) const {
             return g + h;
@@ -519,7 +522,7 @@ namespace pathfinding::search {
                 output_t(
                     const CpdManager<G, V>& cpdManager,
                     const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph,
-                    cost_t focalListW,
+                    const fractional_number<cost_t>& focalListW,
                     cost_t epsilon
                     ): 
                     heuristic{cpdManager, perturbatedGraph},
@@ -560,7 +563,7 @@ namespace pathfinding::search {
          * @return cpd search algorithm
          */
         template <typename G, typename V>
-        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, cost_t focalListW, cost_t epsilon) {
+        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, const fractional_number<cost_t>& focalListW, cost_t epsilon) {
             return new output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,

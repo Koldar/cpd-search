@@ -3,6 +3,7 @@
 #include <boost/filesystem.hpp>
 
 #include <cpp-utils/adjacentGraph.hpp>
+#include <pathfinding-utils/types.hpp>
 
 #include <pathfinding-utils/GridMap.hpp>
 #include <pathfinding-utils/MovingAIGridMapReader.hpp>
@@ -28,9 +29,9 @@ SCENARIO("test CpdHeuristic") {
     GIVEN("a gridmap") {
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -179,9 +180,9 @@ SCENARIO("test GraphState supporting concepts") {
     GIVEN("a gridmap") {
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load("square03.map");
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -301,9 +302,9 @@ SCENARIO("test CpdSearch with optimality bound") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -490,9 +491,9 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -672,9 +673,9 @@ SCENARIO("test CPdFocalHeuristic") {
     GIVEN("a gridmap") {
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN, 
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -910,9 +911,9 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN, 
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -945,7 +946,7 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
         // USE THE FACTORY TO PROVIDE CpdSearch
 
         CpdFocalSearchFactory factory{};
-        auto factory_output = factory.get(cpdManager, perturbatedGraph, 1, 1);
+        auto factory_output = factory.get(cpdManager, perturbatedGraph, cost_t{1}, 1);
 
         REQUIRE(g.haveSameVertices(perturbatedGraph));
 
@@ -1097,9 +1098,9 @@ SCENARIO("test CpdFocalSearch with suboptimality bound") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN, 
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -1133,7 +1134,7 @@ SCENARIO("test CpdFocalSearch with suboptimality bound") {
 
         CpdFocalSearchFactory factory{};
         //focal bound set to 2 ==> WA*
-        auto factory_output = factory.get(cpdManager, perturbatedGraph, 2, 1);
+        auto factory_output = factory.get(cpdManager, perturbatedGraph, fractional_number<cost_t>{2}, 1);
 
         REQUIRE(g.haveSameVertices(perturbatedGraph));
 
