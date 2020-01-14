@@ -28,9 +28,9 @@ SCENARIO("test CpdHeuristic") {
     GIVEN("a gridmap") {
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -179,9 +179,9 @@ SCENARIO("test GraphState supporting concepts") {
     GIVEN("a gridmap") {
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load("square03.map");
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -301,9 +301,9 @@ SCENARIO("test CpdSearch with optimality bound") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -490,9 +490,9 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -672,9 +672,9 @@ SCENARIO("test CPdFocalHeuristic") {
     GIVEN("a gridmap") {
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -910,9 +910,9 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -1097,9 +1097,9 @@ SCENARIO("test CpdFocalSearch with suboptimality bound") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 100,
-            'T', 150,
-            '@', cost_t::INFTY
+            '.', 100, color_t::WHITE,
+            'T', 150, color_t::GREEN,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
@@ -1285,11 +1285,11 @@ SCENARIO("test CpdFocalSearch in actual failed tests") {
         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
         MovingAIGridMapReader reader{
-            '.', 1000,
-            'T', 1500,
-            'S', 2000,
-            'W', 2500,
-            '@', cost_t::INFTY
+            '.', 1000, color_t::WHITE,
+            'T', 1500, color_t::GREEN,
+            'S', 2000, color_t::CYAN,
+            'W', 2500, color_t::BLUE,
+            '@', cost_t::INFTY, color_t::BLACK
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"16room_003.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
