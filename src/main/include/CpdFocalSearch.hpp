@@ -101,7 +101,7 @@ namespace pathfinding::search {
      * 
      * f_1min: the state in open with the least f value (ie., peek);
      * Focal contains all the states in open which satisfies the condition:
-     * f_1(n) <= w * f_1min
+     * f_1(n) <= w * f_1min (w > 1)
      * 
      * criterion in open list: as in CPD search: h is the cpd path of n to t target using the original weights
      * criterion in focal list: choose the state with highest g value
@@ -349,11 +349,24 @@ namespace pathfinding::search {
                 
 
                 /*
-                * upperbound/lowebound <= epsilon 
-                * which we derive
-                * eps * lowerbound >= upperbound
-                */
-                if ((this->epsilon * current.getF()) >= upperbound) {
+                 * in focal:
+                 * f_1(n) <= w * f_1min (w > 1)
+                 * 
+                 * so here the current may have f(n) >= f_1min && f <= w f_1min
+                 * so the maximum lowerbound is w f_1min
+                 * 
+                 * upperbound/(w f_1min) <= epsilon
+                 * 
+                 * to preserve the ratio we need to multiply upperbound with w as well
+                 * 
+                 * w * upperbound/lowerbound <= epsilon
+                 * 
+                 * nw/dw * upperbound/lowerbound <= epsilon
+                 * nw * upperbound <=  dw epsilon lowerbound
+                 * 
+                 * dw epsilon lowerbound >= nw upperbound
+                 */
+                if ((this->focalList->getW().getNumerator() * this->epsilon * current.getF()) >= (this->focalList->getW().getDenominator() * upperbound)) {
                     //return the solution by concatenating the current path from start to current and the cpdpath from current to goal
                     //(considering the perturbations!)
                     info("epsilon * lowerbound >= upperbound! ", epsilon, "*", current.getF(), ">=", upperbound);
@@ -392,7 +405,11 @@ namespace pathfinding::search {
                             successor.setParent(&current);
 
                             this->focalList->decreaseOpenListKey(successor);
-                            if ((oldSuccessorF > this->focalList->getW() * bestF) && (successor.getF() <= (this->focalList->getW() * bestF))) {
+
+
+                            // the previous code was, but it didn't handle well fractional w. if ((oldSuccessorF > this->focalList->getW() * bestF) && (successor.getF() <= (this->focalList->getW() * bestF)))
+                            //should be in focal perform this step: this->w.getDenominator() * n <= this->w.getNumerator() * bestF;
+                            if (!this->focalList->shouldBeInFocal(oldSuccessorF, bestF) && this->focalList->shouldBeInFocal(successor.getF(), bestF)) {
                                 //the successor was not inside the focal list but now with this update it is
                                 this->focalList->promoteToFocal(successor);
                             }
@@ -431,7 +448,8 @@ namespace pathfinding::search {
                         }
 
                         info("child", successor, "of state ", current, "not present in open list. Add it f=", successor.getF(), "g=", successor.getG(), "h=", successor.getH(), "(bestF of focal is", bestF, ")");
-                        if (successor.getF() <= this->focalList->getW() * bestF) {
+                        // previous check was (successor.getF() <= this->focalList->getW() * bestF)
+                        if (this->focalList->shouldBeInFocal(successor.getF(), bestF)) {
                             //the state should be put in both open and focal
                             this->focalList->pushInOpenAndInFocal(successor);
                         } else {
