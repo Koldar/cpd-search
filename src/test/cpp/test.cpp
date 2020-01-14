@@ -1338,7 +1338,7 @@ SCENARIO("test CpdFocalSearch in actual failed tests") {
         // USE THE FACTORY TO PROVIDE CpdFocalSearch
 
         CpdFocalSearchFactory factory{};
-        auto factory_output = factory.get(cpdManager, *perturbatedGraph, 1., 1);
+        auto factory_output = factory.get(cpdManager, *perturbatedGraph, fractional_number<cost_t>{1., 1e-3}, 1);
 
         REQUIRE(g.haveSameVertices(*perturbatedGraph));
 
