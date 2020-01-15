@@ -51,7 +51,8 @@ SCENARIO("test CpdHeuristic") {
         const IImmutableGraph<std::string, xyLoc, cost_t>& reorderedGraph = cpdManager.getReorderedGraph();
         // IT'S REALLY IMPORTANT THAT WE QUERY NOT ON "graph" BUT ON "reorderedGraph"!!!!!
         // THIS because the CPD uses those indices, not the ones from "graph"!!!
-        std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>> perturbatedGraph = reorderedGraph.mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false};});
+        std::function<PerturbatedCost(const cost_t&)> costFunction = [&](const cost_t& c) { return PerturbatedCost{c, false};};
+        std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>> perturbatedGraph = reorderedGraph.mapEdges(costFunction);
         CpdHeuristic<GraphState<std::string, xyLoc>, std::string, xyLoc> h{
             cpdManager, 
             *perturbatedGraph
