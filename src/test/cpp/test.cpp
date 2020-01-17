@@ -337,7 +337,7 @@ SCENARIO("test CpdSearch with optimality bound") {
 
         CpdSearchFactory factory{};
         auto factory_output = factory.get(cpdManager, perturbatedGraph, 1);
-        CountCpdSearchListener<std::string, xyLoc> listener{};
+        CountCpdSearchListener<std::string, xyLoc, GraphState<std::string, xyLoc, PerturbatedCost>> listener{};
         factory_output->search.setListener(listener);
 
         REQUIRE(g.haveSameVertices(perturbatedGraph));

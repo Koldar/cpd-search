@@ -9,10 +9,10 @@
 
 namespace pathfinding::search {
 
-    template <typename G, typename V>
-    class CountCpdSearchListener: public CpdSearchListener<G,V> {
-        typedef CountCpdSearchListener<G,V> This;
-        typedef CpdSearchListener<G,V> Super;
+    template <typename G, typename V, typename STATE>
+    class CountCpdSearchListener: public CpdSearchListener<G,V, STATE> {
+        typedef CountCpdSearchListener<G, V, STATE> This;
+        typedef CpdSearchListener<G, V, STATE> Super;
     private:
         int nodeExpanded;
         int nodeGenerated;
@@ -23,8 +23,10 @@ namespace pathfinding::search {
         NumTracker<long> heuristicTime;
         Timer heuristicTimer;
     public:
-        CountCpdSearchListener(): nodeExpanded{0}, nodeGenerated{0}, heuristicTime{}, heuristicTimer{false} {
+        CountCpdSearchListener(): Super{}, nodeExpanded{0}, nodeGenerated{0}, heuristicTime{}, heuristicTimer{false} {
 
+        }
+        CountCpdSearchListener(const Super& o): Super{o}, nodeExpanded{0}, nodeGenerated{0}, heuristicTime{}, heuristicTimer{false} {
         }
         virtual ~CountCpdSearchListener() {
 
@@ -75,6 +77,15 @@ namespace pathfinding::search {
         void onEndingComputingHeuristic(const GraphState<G, V, PerturbatedCost>& s) {
             this->heuristicTimer.stop();
             this->heuristicTime.update(this->heuristicTimer.getElapsedMicroSeconds().toLong());
+        }
+        void onSolutionFound(const STATE& goal) {
+
+        }
+        virtual void onEarlyTerminationActivated(const STATE& from, const STATE& goal) {
+
+        }
+        virtual void onUpperboundRevised(const STATE& from, cost_t oldUpperbound, cost_t newUpperbound) {
+
         }
     public:
         void cleanup() {

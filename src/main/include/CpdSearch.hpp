@@ -16,10 +16,12 @@
 #include <pathfinding-utils/IHeuristic.hpp>
 #include <pathfinding-utils/StandardLocationGoalChecker.hpp>
 #include <pathfinding-utils/StandardStateExpander.hpp>
+#include <pathfinding-utils/AstarListener.hpp>
 
 #include <compressed-path-database/CpdManager.hpp>
 
 #include "CpdHeuristic.hpp"
+#include "CpdSearchListener.hpp"
 
 
 namespace pathfinding::search {
@@ -58,41 +60,6 @@ namespace pathfinding::search {
     }
 
     /**
-     * @brief class which listen for events in a CPDSearch run
-     * 
-     * @tparam G 
-     * @tparam V 
-     */
-    template <typename G, typename V>
-    class CpdSearchListener: public ICleanable {
-    public:
-        /**
-         * @brief fired when the search expands a new search node
-         * 
-         * @param s 
-         */
-        virtual void onNodeExpanded(const GraphState<G, V, PerturbatedCost>& s) = 0;
-        /**
-         * @brief fired when the **search** (not other entities like the state suppliers) generates a new search node
-         * 
-         * @param s 
-         */
-        virtual void onNodeGenerated(const GraphState<G, V, PerturbatedCost>& s) = 0;
-        /**
-         * @brief fired when the search start computing the heuristic of something
-         * 
-         * @param s 
-         */
-        virtual void onStartingComputingHeuristic(const GraphState<G, V, PerturbatedCost>& s) = 0;
-        /**
-         * @brief fired when the search ends computing the heuristic of something
-         * 
-         * @param s 
-         */
-        virtual void onEndingComputingHeuristic(const GraphState<G, V, PerturbatedCost>& s) = 0;
-    };
-
-    /**
      * @brief CPD search
      * 
      * Perturbations
@@ -121,11 +88,11 @@ namespace pathfinding::search {
      * @tparam V type of the payload of each vertex in map graph
      */
     template <typename G, typename V>
-    class CpdSearch: public IMemorable, public ISearchAlgorithm<GraphState<G, V, PerturbatedCost>, const GraphState<G, V, PerturbatedCost>*, const GraphState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdSearchListener<G, V>> {
+    class CpdSearch: public IMemorable, public ISearchAlgorithm<GraphState<G, V, PerturbatedCost>, const GraphState<G, V, PerturbatedCost>*, const GraphState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdSearchListener<G, V, GraphState<G, V, PerturbatedCost>>> {
         typedef GraphState<G, V, PerturbatedCost> GraphStateReal;
         typedef CpdSearch<G, V> This;
-        typedef ISingleListenable<CpdSearchListener<G, V>> ThisListener;
-        friend class CpdSearchListener<G, V>;
+        typedef CpdSearchListener<G, V, GraphState<G, V, PerturbatedCost>> Listener;
+        typedef ISingleListenable<Listener> Super2;
     public:
         /**
          * @brief Construct a new Time Cpd Search object
@@ -139,7 +106,7 @@ namespace pathfinding::search {
          * @param epsilon suboptimality bound to test
          * @param openListCapacity 
          */
-        CpdSearch(CpdHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, StandardStateExpander<GraphStateReal, G, V, PerturbatedCost, PerturbatedCost::getCost>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon, unsigned int openListCapacity = 1024) : ThisListener{},
+        CpdSearch(CpdHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, StandardStateExpander<GraphStateReal, G, V, PerturbatedCost, PerturbatedCost::getCost>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, cost_t epsilon, unsigned int openListCapacity = 1024) : Super2{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
             openList{nullptr} {
@@ -159,12 +126,12 @@ namespace pathfinding::search {
         CpdSearch(const CpdSearch& other) = delete;
         CpdSearch& operator=(const CpdSearch& other) = delete;
 
-        CpdSearch(CpdSearch&& other): ThisListener{std::move(other)}, heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager}, openList{other.openList} {
+        CpdSearch(CpdSearch&& other): Super2{std::move(other)}, heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager}, openList{other.openList} {
             other.openList = nullptr;
         }
 
         CpdSearch& operator=(CpdSearch&& other) {
-            ThisListener::operator=(::std::move(other));
+            Super2::operator=(::std::move(other));
 
             this->heuristic = other.heuristic;
             this->goalChecker = other.goalChecker;
@@ -246,9 +213,9 @@ namespace pathfinding::search {
             const GraphStateReal* earlyTerminationState = nullptr;
 
             start.setG(0);
-            this->fireEvent([&, start](CpdSearchListener<G, V>& l) {l.onStartingComputingHeuristic(start); });
+            this->fireEvent([&, start](Listener& l) {l.onStartingComputingHeuristic(start); });
             start.setH(this->heuristic.getHeuristic(start, expectedGoal));
-            this->fireEvent([&, start](CpdSearchListener<G, V>& l) {l.onEndingComputingHeuristic(start); });
+            this->fireEvent([&, start](Listener& l) {l.onEndingComputingHeuristic(start); });
             start.setF(this->computeF(start.getG(), start.getH()));
 
             this->openList->push(start);
@@ -279,11 +246,13 @@ namespace pathfinding::search {
                     info("epsilon * lowerbound >= upperbound! ", epsilon, "*", current.getF(), ">=", upperbound);
                     info("early terminating from ", *earlyTerminationState, "up until ", *expectedGoal);
                     goal = this->earlyTerminate(*earlyTerminationState, expectedGoal);
+                    this->fireEvent([&, earlyTerminationState, goal](Listener& l) {l.onEarlyTerminationActivated(*earlyTerminationState, *goal); });
+
                     goto goal_found;
                 }
 
                 current.markAsExpanded();
-                this->fireEvent([&, current](CpdSearchListener<G, V>& l) {l.onNodeExpanded(current); });
+                this->fireEvent([&, current](Listener& l) {l.onNodeExpanded(current); });
 
                 info("computing successors of state ", current, "...");
                 for(auto pair: this->expander.getSuccessors(current, this->supplier)) {
@@ -313,15 +282,15 @@ namespace pathfinding::search {
                     } else {
                         //state is not present in open list. Add to it
                         cost_t gval = current.getG() + current_to_successor_cost;
-                        this->fireEvent([&, successor](CpdSearchListener<G, V>& l) {l.onStartingComputingHeuristic(successor); });
+                        this->fireEvent([&, successor](Listener& l) {l.onStartingComputingHeuristic(successor); });
                         cost_t hval = this->heuristic.getHeuristic(successor, expectedGoal);
-                        this->fireEvent([&, successor](CpdSearchListener<G, V>& l) {l.onEndingComputingHeuristic(successor); });
+                        this->fireEvent([&, successor](Listener& l) {l.onEndingComputingHeuristic(successor); });
                         
                         successor.setG(gval);
                         successor.setH(hval);
                         successor.setF(this->computeF(gval, hval));
                         successor.setParent(&current);
-                        this->fireEvent([&, successor](CpdSearchListener<G, V>& l) {l.onNodeGenerated(successor); });
+                        this->fireEvent([&, successor](Listener& l) {l.onNodeGenerated(successor); });
 
                         //we may have a new upperbound of the solution
                         if (upperbound > gval + this->heuristic.getLastPerturbatedCost()) {
@@ -332,7 +301,10 @@ namespace pathfinding::search {
                                 info("updating incumbent. incumbent: from", *earlyTerminationState, "to", successor);
                             }
                             
-                            upperbound = gval + this->heuristic.getLastPerturbatedCost();
+                            auto newupperbound = gval + this->heuristic.getLastPerturbatedCost();
+                            this->fireEvent([&, successor](Listener& l) {l.onUpperboundRevised(successor, upperbound, newupperbound); });
+                            upperbound = newupperbound;
+
                             earlyTerminationState = &successor;
                         }
 
