@@ -1,16 +1,16 @@
-#ifndef _CPD_SEARCH_CPD_FOCAL_SEARCH_HEADER__
-#define _CPD_SEARCH_CPD_FOCAL_SEARCH_HEADER__
+#ifndef _CPD_SEARCH_CPD_FOCAL_SEARCH_OPTIMAL_HEADER__
+#define _CPD_SEARCH_CPD_FOCAL_SEARCH_OPTIMAL_HEADER__
 
 #include <cpp-utils/listeners.hpp>
+#include <cpp-utils/MCValue.hpp>
+#include <cpp-utils/MDValue.hpp>
 
 #include <pathfinding-utils/FocalList.hpp>
 #include <pathfinding-utils/ISearchAlgorithm.hpp>
 #include <pathfinding-utils/IStatePruner.hpp>
-#include <pathfinding-utils/StandardStateExpander.hpp>
 #include <pathfinding-utils/StandardLocationGoalChecker.hpp>
 
 #include "GraphFocalState.hpp"
-#include "CpdFocalSearch.hpp"
 #include "CpdFocalHeuristic.hpp"
 #include "CpdFocalExpander.hpp"
 #include "CpdFocalSupplier.hpp"
@@ -25,7 +25,7 @@ namespace pathfinding::search {
     namespace internal {
 
         template <typename G, typename V>
-        struct OpenListOrderer {
+        struct OpenListOptimalOrderer {
             bool operator ()(const GraphFocalState<G, V, PerturbatedCost>& a, const GraphFocalState<G, V, PerturbatedCost>& b) {
                 if (a.getF() != b.getF()) {
                     //f are different
@@ -38,7 +38,7 @@ namespace pathfinding::search {
         };
 
         template <typename G, typename V>
-        struct FocalListOrderer {
+        struct FocalListOptimalOrderer {
             bool operator ()(const GraphFocalState<G, V, PerturbatedCost>& a, const GraphFocalState<G, V, PerturbatedCost>& b) {
                 //f are the same. Tie breaking by sleectnig the state with bigger g
                 return a.getG() > b.getG();
@@ -46,7 +46,7 @@ namespace pathfinding::search {
         };
 
         template <typename G, typename V>
-        struct GraphFocalStateGetCost {
+        struct GraphFocalOptimalStateGetCost {
             cost_t operator()(const GraphFocalState<G, V, PerturbatedCost>& state) {
                 return state.getF();
             }
@@ -55,28 +55,14 @@ namespace pathfinding::search {
     }
 
     /**
-     * @brief CPD Focal search
+     * @brief CPD Focal search Optimal
      * 
      * 
-     * Like CPD Search but with some optimizations.
+     * Like CPD Focal Search (::CPDFocalSearch) but with he gimmicky that when we find a solution we keep going up until 
+     * we reach the optimal solution. This algorithm is optimal. To make the bounded suboptimal algorithm CpdFocalSearch optimal
+     * we need to keep going until the upperbound equals to lowerbound.
      * 
-     * Successors:
-     * As node successors we put, aside the usual successors, 
-     * the nodes along the cpd path towards the goal just before the earliest perturbation (or the target itself if no
-     * perturbation are present).
-     * 
-     * Focal list:
-     * We have an open list, a focal list and a suboptimality bound w (like WA*)
-     * the 2 lists have 2 f functions used to sort the states within them.
-     * f_1: sorts states in open
-     * f_2: sorts states in focal
-     * 
-     * f_1min: the state in open with the least f value (ie., peek);
-     * Focal contains all the states in open which satisfies the condition:
-     * f_1(n) <= w * f_1min (w > 1)
-     * 
-     * criterion in open list: as in CPD search: h is the cpd path of n to t target using the original weights
-     * criterion in focal list: choose the state with highest g value
+     * As soon as a solution is found, the upperbound is set to its cost.
      * 
      * 
      * @tparam GraphState<G,V> 
@@ -85,9 +71,9 @@ namespace pathfinding::search {
      * @tparam OTHER 
      */
     template <typename G, typename V>
-    class CpdFocalSearch: public IMemorable, public ISearchAlgorithm<GraphFocalState<G, V, PerturbatedCost>, const GraphFocalState<G, V, PerturbatedCost>*, const GraphFocalState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdSearchListener<G, V, GraphFocalState<G, V, PerturbatedCost>>> {
+    class CpdFocalOptimalSearch: public IMemorable, public ISearchAlgorithm<GraphFocalState<G, V, PerturbatedCost>, const GraphFocalState<G, V, PerturbatedCost>*, const GraphFocalState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdSearchListener<G, V, GraphFocalState<G, V, PerturbatedCost>>> {
         typedef GraphFocalState<G, V, PerturbatedCost> GraphStateReal;
-        typedef CpdFocalSearch<G, V> This;
+        typedef CpdFocalOptimalSearch<G, V> This;
         typedef CpdSearchListener<G, V, GraphStateReal> Listener;
         typedef ISingleListenable<Listener> Super2;
     private:
@@ -95,7 +81,7 @@ namespace pathfinding::search {
          * @brief parameter that allows us to tweak the suboptimality bound of the algorithm
          * 
          */
-        cost_t epsilon;
+        fractional_number<cost_t> epsilon;
         /**
          * @brief manager of cpd
          * 
@@ -108,7 +94,7 @@ namespace pathfinding::search {
         IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier;
         IStatePruner<GraphStateReal>& pruner;
 
-        FocalList<GraphStateReal, internal::OpenListOrderer<G,V>, internal::FocalListOrderer<G,V>, internal::GraphFocalStateGetCost<G,V>, cost_t>* focalList;
+        FocalList<GraphStateReal, internal::OpenListOptimalOrderer<G,V>, internal::FocalListOptimalOrderer<G,V>, internal::GraphFocalOptimalStateGetCost<G,V>, cost_t>* focalList;
     public:
         /**
          * @brief Construct a new Time Cpd Search object
@@ -121,26 +107,26 @@ namespace pathfinding::search {
          * @param cpdManager cpd manager that will be used to poll the cpd. It needs to be already loaded
          * @param epsilon suboptimality bound to test
          */
-        CpdFocalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, const fractional_number<cost_t>& focalListWeight, cost_t epsilon) : Super2{},
+        CpdFocalOptimalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, const fractional_number<cost_t>& focalListWeight, const fractional_number<cost_t>& epsilon) : Super2{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager}
             {
 
-            this->focalList = new FocalList<GraphStateReal, internal::OpenListOrderer<G,V>, internal::FocalListOrderer<G,V>, internal::GraphFocalStateGetCost<G,V>, cost_t>{focalListWeight};
+            this->focalList = new FocalList<GraphStateReal, internal::OpenListOptimalOrderer<G,V>, internal::FocalListOptimalOrderer<G,V>, internal::GraphFocalOptimalStateGetCost<G,V>, cost_t>{focalListWeight};
             if (!heuristic.isConsistent()) {
                 throw cpp_utils::exceptions::InvalidArgumentException{"the heuristic is not consistent!"};
             }
         }
 
-        virtual ~CpdFocalSearch() {
+        virtual ~CpdFocalOptimalSearch() {
             this->tearDownSearch();
             delete this->focalList;
         }
         //the class cannot be copied whatsoever
-        CpdFocalSearch(const This& other) = delete;
-        This& operator=(const CpdFocalSearch& other) = delete;
+        CpdFocalOptimalSearch(const This& other) = delete;
+        This& operator=(const CpdFocalOptimalSearch& other) = delete;
 
-        CpdFocalSearch(This&& other): Super2{other}, heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager}, focalList{::std::move(other.focalList)} {
+        CpdFocalOptimalSearch(This&& other): Super2{other}, heuristic{other.heuristic}, goalChecker{other.goalChecker}, supplier{other.supplier}, expander{other.expander}, pruner{other.pruner}, epsilon{other.epsilon}, cpdManager{other.cpdManager}, focalList{::std::move(other.focalList)} {
         }
 
         This& operator=(This&& other) {
@@ -273,9 +259,9 @@ namespace pathfinding::search {
                 info("starting A*! start = ", start, "goal = ", "none");
             }
             
-
             const GraphStateReal* goal = nullptr;
-            cost_t upperbound = cost_t::INFTY;
+            MDValue<cost_t> upperbound = cost_t::INFTY;
+            MCValue<cost_t> lowerbound = cost_t{0};
             const GraphStateReal* earlyTerminationState = nullptr;
             cost_t bestF = cost_t::INFTY;
 
@@ -314,14 +300,35 @@ namespace pathfinding::search {
                 if (this->goalChecker.isGoal(current, expectedGoal)) {
                     info("state ", current, "is a goal!");
                     goal = &current;
-                    goto goal_found;
+
+                    //pop from focal
+                    current.markAsExpanded();
+                    DO_ON_DEBUG_IF(upperbound < current.getF()) {
+                        throw cpp_utils::exceptions::makeImpossibleException("we're trying to revise the upperbound ", upperbound, "with a greater value", current.getF(), "!");
+                    }
+                    upperbound = current.getF();
+                    this->focalList->popFromFocal();
+
+                    //the goal we have found might not be the optimal. we need to keep going
+                    this->fireEvent([&current](Listener& l) { l.onSolutionFound(current); });
+
+                    continue;
                 }
 
                 this->focalList->popFromFocal();
                 //current.getF() is also a lowerbound since the heuristic is admissible
-                cost_t lowerbound = current.getF();
-                
+                lowerbound = current.getF();
 
+                // check if we have computed the optimal solution
+                if (goal != nullptr) {
+                    //we have already computed a solution. Let's check if we have reached optimality
+                    if (static_cast<cost_t>(upperbound) <= static_cast<cost_t>(lowerbound)) {
+                        info("we have a solution. ", upperbound, "<=", lowerbound, "! Yeiling optimal solution");
+                        goto optimal_solution_found;
+                    }
+                }
+
+                // ok, no optimal solution was found. Check if we ahve at least a bounded solution
                 /*
                  * in focal:
                  * f_1(n) <= w * f_1min (w > 1)
@@ -335,18 +342,23 @@ namespace pathfinding::search {
                  * 
                  * w * upperbound/lowerbound <= epsilon
                  * 
-                 * nw/dw * upperbound/lowerbound <= epsilon
-                 * nw * upperbound <=  dw epsilon lowerbound
+                 * nw/dw * upperbound/lowerbound <= nepsilon/depsilon
+                 * nw * upperbound * depsilon <=  dw * nepsilon * lowerbound
                  * 
-                 * dw epsilon lowerbound >= nw upperbound
+                 * dw * nepsilon * lowerbound >= nw upperbound * depsilon
+                 * 
                  */
-                if ((this->focalList->getW().getNumerator() * this->epsilon * current.getF()) >= (this->focalList->getW().getDenominator() * upperbound)) {
+                if ((this->focalList->getW().getNumerator() * this->epsilon.getNumerator() * current.getF()) >= (this->focalList->getW().getDenominator() * this->epsilon.getDenominator() * upperbound)) {
                     //return the solution by concatenating the current path from start to current and the cpdpath from current to goal
                     //(considering the perturbations!)
                     info("epsilon * lowerbound >= upperbound! ", epsilon, "*", current.getF(), ">=", upperbound);
                     info("early terminating from ", *earlyTerminationState, "up until ", *expectedGoal);
                     goal = this->earlyTerminate(*earlyTerminationState, expectedGoal);
-                    goto goal_found;
+
+                    current.markAsExpanded();
+                    //revise upperbound
+                    upperbound = goal->getG();
+                    continue;
                 }
 
                 current.markAsExpanded();
@@ -433,10 +445,14 @@ namespace pathfinding::search {
                     }
                 }
             }
-            info("found no solutions!");
-            throw SolutionNotFoundException{};
+            //the open list is empty, but we may have found a solution. If we have found one, we simple return
+            if (goal == nullptr) {
+                info("found no solutions!");
+                throw SolutionNotFoundException{};
+            }
+            
 
-            goal_found:
+            optimal_solution_found:
             return *goal;
 
         }
@@ -472,7 +488,7 @@ namespace pathfinding::search {
      * @brief simple class that create the cpd search more easily
      * 
      */
-    class CpdFocalSearchFactory {
+    class CpdFocalSearchOptimalFactory {
     public:
         template <typename G, typename V>
         struct output_t {
@@ -510,13 +526,13 @@ namespace pathfinding::search {
                  * @note this needs to be the last field declared here, since its dependent on other fields.
                  * @see https://wiki.sei.cmu.edu/confluence/display/cplusplus/OOP53-CPP.+Write+constructor+member+initializers+in+the+canonical+order
                  */
-                CpdFocalSearch<G, V> search;
+                CpdFocalOptimalSearch<G, V> search;
             public:
                 output_t(
                     const CpdManager<G, V>& cpdManager,
                     const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph,
                     const fractional_number<cost_t>& focalListW,
-                    cost_t epsilon
+                    const fractional_number<cost_t>& epsilon
                     ): 
                     heuristic{cpdManager, perturbatedGraph},
                     goalChecker{}, 
@@ -556,7 +572,7 @@ namespace pathfinding::search {
          * @return cpd search algorithm
          */
         template <typename G, typename V>
-        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, const fractional_number<cost_t>& focalListW, cost_t epsilon) {
+        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, const fractional_number<cost_t>& focalListW, const fractional_number<cost_t>& epsilon) {
             return new output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,

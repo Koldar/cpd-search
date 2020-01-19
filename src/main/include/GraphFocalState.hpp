@@ -1,6 +1,8 @@
 #ifndef _CPD_SEARCH_GRAPH_FOCAL_STATE_HEADER__
 #define _CPD_SEARCH_GRAPH_FOCAL_STATE_HEADER__
 
+#include <pathfinding-utils/GraphState.hpp>
+
 namespace pathfinding::search {
 
     /**

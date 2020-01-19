@@ -1280,79 +1280,80 @@ SCENARIO("test CpdFocalSearch with suboptimality bound") {
     }
 }
 
-SCENARIO("test CpdFocalSearch in actual failed tests") {
+//TODO remove
+// SCENARIO("test CpdFocalSearch in actual failed tests") {
    
-    GIVEN("failed test 1") {
+//     GIVEN("failed test 1") {
 
-        // CREATE GRAPH WHERE WE WANT TO OPERATE
+//         // CREATE GRAPH WHERE WE WANT TO OPERATE
 
-        MovingAIGridMapReader reader{
-            '.', 1000, color_t::WHITE,
-            'T', 1500, color_t::GREEN,
-            'S', 2000, color_t::CYAN,
-            'W', 2500, color_t::BLUE,
-            '@', cost_t::INFTY, color_t::BLACK
-        };
-        GridMap gridMap = reader.load(boost::filesystem::path{"16room_003.map"});
-        GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
-        AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
+//         MovingAIGridMapReader reader{
+//             '.', 1000, color_t::WHITE,
+//             'T', 1500, color_t::GREEN,
+//             'S', 2000, color_t::CYAN,
+//             'W', 2500, color_t::BLUE,
+//             '@', cost_t::INFTY, color_t::BLACK
+//         };
+//         GridMap gridMap = reader.load(boost::filesystem::path{"16room_003.map"});
+//         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
+//         AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
 
-        /*
-         *  01234
-         * 0.XX..
-         * 1...@@
-         * 2..@@.
-         * 3...@@
-         * 4..XX.
-         * 
-         */
+//         /*
+//          *  01234
+//          * 0.XX..
+//          * 1...@@
+//          * 2..@@.
+//          * 3...@@
+//          * 4..XX.
+//          * 
+//          */
 
-        // INCLUDE THE CPD
+//         // INCLUDE THE CPD
 
-        CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./16room_003.cpd"}, graph};
-        const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
+//         CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./16room_003.cpd"}, graph};
+//         const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
 
-        // CREATE THE TIME GRAPH WITH PERTURBATIONS
+//         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        boost::filesystem::path perturbateEdgesFilename{"./16room_003_01.dat"};
-        FILE* f = fopen(perturbateEdgesFilename.native().c_str(), "rb");
-        if (f == nullptr) {
-            REQUIRE(false);
-        }
-        SetPlus<Edge<PerturbatedCost>> perturbatedEdges{};
-        AdjacentGraph<std::string, xyLoc, PerturbatedCost>* perturbatedGraph = new AdjacentGraph<std::string, xyLoc, PerturbatedCost>{
-            *cpdManager.getReorderedGraph().mapEdges(std::function<PerturbatedCost(const cost_t&)>([&](const cost_t& c) { 
-                return PerturbatedCost{c, false};
-            }))
-        };
-        cpp_utils::serializers::loadFromFile(f, perturbatedEdges);
+//         boost::filesystem::path perturbateEdgesFilename{"./16room_003_01.dat"};
+//         FILE* f = fopen(perturbateEdgesFilename.native().c_str(), "rb");
+//         if (f == nullptr) {
+//             REQUIRE(false);
+//         }
+//         SetPlus<Edge<PerturbatedCost>> perturbatedEdges{};
+//         AdjacentGraph<std::string, xyLoc, PerturbatedCost>* perturbatedGraph = new AdjacentGraph<std::string, xyLoc, PerturbatedCost>{
+//             *cpdManager.getReorderedGraph().mapEdges(std::function<PerturbatedCost(const cost_t&)>([&](const cost_t& c) { 
+//                 return PerturbatedCost{c, false};
+//             }))
+//         };
+//         cpp_utils::serializers::loadFromFile(f, perturbatedEdges);
 
-        for (auto perturbatedEdge : perturbatedEdges) {
-            perturbatedGraph->changeWeightEdge(
-                perturbatedEdge.getSourceId(), 
-                perturbatedEdge.getSinkId(), 
-                perturbatedEdge.getPayload()
-            );
-        }
-        fclose(f);
+//         for (auto perturbatedEdge : perturbatedEdges) {
+//             perturbatedGraph->changeWeightEdge(
+//                 perturbatedEdge.getSourceId(), 
+//                 perturbatedEdge.getSinkId(), 
+//                 perturbatedEdge.getPayload()
+//             );
+//         }
+//         fclose(f);
 
-        // USE THE FACTORY TO PROVIDE CpdFocalSearch
+//         // USE THE FACTORY TO PROVIDE CpdFocalSearch
 
-        CpdFocalSearchFactory factory{};
-        auto factory_output = factory.get(cpdManager, *perturbatedGraph, fractional_number<cost_t>{1., 1e-3}, 1);
+//         CpdFocalSearchFactory factory{};
+//         auto factory_output = factory.get(cpdManager, *perturbatedGraph, fractional_number<cost_t>{1., 1e-3}, 1);
 
-        REQUIRE(g.haveSameVertices(*perturbatedGraph));
+//         REQUIRE(g.haveSameVertices(*perturbatedGraph));
 
-        WHEN("from 267,135 to 267, 13") {
-            critical("testing failing 1");
-            xyLoc startLoc{267, 135};
-            xyLoc goalLoc{267, 136};
-            nodeid_t startId = g.idOfVertex(startLoc);
-            nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
-            auto solution = factory_output->search.search(start, goal, false, false);
-            REQUIRE(solution->getCost() == 1000);
-        }
-    }
-}
+//         WHEN("from 267,135 to 267, 13") {
+//             critical("testing failing 1");
+//             xyLoc startLoc{267, 135};
+//             xyLoc goalLoc{267, 136};
+//             nodeid_t startId = g.idOfVertex(startLoc);
+//             nodeid_t goalId = g.idOfVertex(goalLoc);
+//             GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
+//             GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+//             auto solution = factory_output->search.search(start, goal, false, false);
+//             REQUIRE(solution->getCost() == 1000);
+//         }
+//     }
+// }
