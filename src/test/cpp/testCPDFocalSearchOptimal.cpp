@@ -9,7 +9,7 @@ using namespace pathfinding::maps;
 using namespace pathfinding::search;
 
 
-SCENARIO("test CpdFocalOptimalSearch with suboptimality bound") {
+SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-optimal-search]") {
    
     GIVEN("a gridmap") {
 

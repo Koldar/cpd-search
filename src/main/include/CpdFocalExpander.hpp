@@ -32,7 +32,7 @@ namespace pathfinding::search {
             cpp_utils::vectorplus<std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>> result{};
             //****************** MOVING *********************
             for (auto outEdge : this->graph.getOutEdges(state.getPosition())) {
-                fine("an outedge ", outEdge, " of ", state, "(", &state, ") goes to", outEdge.getSinkId(), "edge payload of", outEdge.getPayload());
+                fine("an outedge ", outEdge, " of ", this->graph.getVertex(state.getPosition()), "(", &state, ") goes to", this->graph.getVertex(outEdge.getSinkId()), "edge payload of", outEdge.getPayload());
                 result.add(std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>{
                     supplier.getState(outEdge.getSinkId(), generation_enum_t::FROM_SEARCH),
                     outEdge.getPayload().getCost()

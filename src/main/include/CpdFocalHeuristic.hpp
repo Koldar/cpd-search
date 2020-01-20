@@ -186,9 +186,21 @@ namespace pathfinding::search {
             this->lastEarliestPerturbationSourceIdCost = cost_t::INFTY;
         }
     public:
+        /**
+         * @brief last vertex on the cpd path. after that the cpd path becomes perturbated
+         * 
+         * @param node node where we start the cpd path towrds the goal
+         * @return nodeid_t last vertex of the subpath @c node to @c goal which is unperturbated
+         */
         nodeid_t getPerturbatedSourceId(nodeid_t node) const {
             return this->perturbatedSourceIdCache[node];
         }
+        /**
+         * @brief the cost we need to pay for reaching the first perturbation from the given node, using the cpd paths
+         * 
+         * @param node node involved
+         * @return cost_t cost of the path
+         */
         cost_t getPerturbatedPathCost(nodeid_t node) const {
             return this->perturbatedPathCostCache[node];
         }

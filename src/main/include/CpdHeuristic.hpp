@@ -51,6 +51,7 @@ namespace pathfinding::search {
         cpp_utils::vectorplus<cost_t> hOriginalCache;
         /**
          * @brief cache for H value already computed over the perturbated map
+         * cost_t::INFTY if we haven't computed the H vlaue yet.
          * 
          */
         cpp_utils::vectorplus<cost_t> hPerturbatedCache;
@@ -203,6 +204,41 @@ namespace pathfinding::search {
         virtual void cleanup() {
             this->hOriginalCache.fill(cost_t::INFTY);
             this->hPerturbatedCache.fill(cost_t::INFTY);
+        }
+    public:
+        /**
+         * @brief check if the heuristic values (h[n] and h'[n]) have been computed yet
+         * 
+         * @param node the node involved
+         * @return true if the heuristic value from this node to the goal has been computed already
+         * @return false otheriwse. if so, it not advisable to use the heuristic cost at all
+         */
+        bool isCostSet(nodeid_t node) const {
+            return this->hOriginalCache[node] != cost_t::INFTY;
+        }
+        /**
+         * @brief return the path from the given node to the goal using the original weights
+         * 
+         * @param node node involved
+         * @return cost_t cpd-path from @c node to the goal using the original weights
+         */
+        cost_t getCPDPathOriginalWeights(nodeid_t node) const {
+            DO_ON_DEBUG_IF(!this->isCostSet(node)) {
+                throw cpp_utils::exceptions::makeInvalidArgumentException("node", node, "heuristic costs have not been computed yet");
+            }
+            return this->hOriginalCache[node];
+        }
+        /**
+         * @brief return the path from the given node to the goal using the perturbated weights
+         * 
+         * @param node node involved
+         * @return cost_t cpd-path from @c node to the goal using the perturbated weights
+         */
+        cost_t getCPDPathPerturbatedWeights(nodeid_t node) const {
+            DO_ON_DEBUG_IF(!this->isCostSet(node)) {
+                throw cpp_utils::exceptions::makeInvalidArgumentException("node", node, "heuristic costs have not been computed yet");
+            }
+            return this->hPerturbatedCache[node];
         }
     public:
         cost_t getLastOriginalCost() const {
