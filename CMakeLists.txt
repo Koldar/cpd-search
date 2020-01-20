@@ -241,7 +241,8 @@ if(PARENTDIR STREQUAL "Debug")
     message(STATUS "${BoldCyan}Building Debug!${ColorReset}")
     set(CMAKE_BUILD_TYPE "Debug")
     #-fno-stack-protector: to debug stack smashing (https://stackoverflow.com/a/1347464/1887602)
-    add_definitions(-DQUICK_LOG=${THEPROJECT_DEBUG_LOG_LEVEL} -DDEBUG -fno-stack-protector )
+    #add boost line number in stacktrace
+    add_definitions(-DQUICK_LOG=${THEPROJECT_DEBUG_LOG_LEVEL} -DDEBUG -fno-stack-protector)
 endif(PARENTDIR STREQUAL "Debug")
 #add common definitions
 add_definitions(-DUSE_PARALLELISM -fopenmp)
