@@ -32,7 +32,7 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound") {
          * 3.X..@
          * 4.X...
          * 
-         * top X = 150
+         * top X = 250
          */
 
         // INCLUDE THE CPD
@@ -44,19 +44,19 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound") {
 
         AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) {return PerturbatedCost{c, false}; })};
 
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 4}), perturbatedGraph.idOfVertex(xyLoc{1, 4}), PerturbatedCost{200, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 4}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{200, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 3}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{200, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 3}), perturbatedGraph.idOfVertex(xyLoc{1, 4}), PerturbatedCost{200, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 4}), perturbatedGraph.idOfVertex(xyLoc{1, 4}), PerturbatedCost{250, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 4}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{250, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 3}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{250, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 3}), perturbatedGraph.idOfVertex(xyLoc{1, 4}), PerturbatedCost{250, true});
 
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 4}), perturbatedGraph.idOfVertex(xyLoc{2, 4}), PerturbatedCost{200, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 4}), perturbatedGraph.idOfVertex(xyLoc{2, 3}), PerturbatedCost{200, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 3}), perturbatedGraph.idOfVertex(xyLoc{2, 3}), PerturbatedCost{200, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 3}), perturbatedGraph.idOfVertex(xyLoc{2, 4}), PerturbatedCost{200, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 4}), perturbatedGraph.idOfVertex(xyLoc{2, 4}), PerturbatedCost{250, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 4}), perturbatedGraph.idOfVertex(xyLoc{2, 3}), PerturbatedCost{250, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 3}), perturbatedGraph.idOfVertex(xyLoc{2, 3}), PerturbatedCost{250, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 3}), perturbatedGraph.idOfVertex(xyLoc{2, 4}), PerturbatedCost{250, true});
 
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 2}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{200, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 2}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{200, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 2}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{200, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 2}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{250, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 2}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{250, true});
+        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 2}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{250, true});
 
         // USE THE FACTORY TO PROVIDE CpdSearch
 
@@ -125,7 +125,7 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound") {
             * 3.X..@
             * 4.X...
             * 
-            * top X = 150
+            * top X = 250
             */
 
             xyLoc startLoc{4,4}; 
@@ -135,6 +135,7 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound") {
             GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
             GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
             auto solution = factory_output->search.search(start, goal, false, true);
+            critical("fetch a solution with cost of", solution->getCost());
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
                     return x->getPayload();

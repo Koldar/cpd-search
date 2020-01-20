@@ -303,15 +303,14 @@ namespace pathfinding::search {
 
                     //pop from focal
                     current.markAsExpanded();
-                    DO_ON_DEBUG_IF(upperbound < current.getF()) {
-                        throw cpp_utils::exceptions::makeImpossibleException("we're trying to revise the upperbound ", upperbound, "with a greater value", current.getF(), "!");
-                    }
-                    upperbound = current.getF();
+                    upperbound = current.getG();
                     this->focalList->popFromFocal();
 
                     //the goal we have found might not be the optimal. we need to keep going
                     this->fireEvent([&current](Listener& l) { l.onSolutionFound(current); });
 
+                    // we have reached the goal. It's impossible to go to the goal using the goal with an alternate route.
+                    //keep going
                     continue;
                 }
 
@@ -329,36 +328,23 @@ namespace pathfinding::search {
                 }
 
                 // ok, no optimal solution was found. Check if we ahve at least a bounded solution
-                /*
-                 * in focal:
-                 * f_1(n) <= w * f_1min (w > 1)
-                 * 
-                 * so here the current may have f(n) >= f_1min && f <= w f_1min
-                 * so the maximum lowerbound is w f_1min
-                 * 
-                 * upperbound/(w f_1min) <= epsilon
-                 * 
-                 * to preserve the ratio we need to multiply upperbound with w as well
-                 * 
-                 * w * upperbound/lowerbound <= epsilon
-                 * 
-                 * nw/dw * upperbound/lowerbound <= nepsilon/depsilon
-                 * nw * upperbound * depsilon <=  dw * nepsilon * lowerbound
-                 * 
-                 * dw * nepsilon * lowerbound >= nw upperbound * depsilon
-                 * 
-                 */
-                if ((this->focalList->getW().getNumerator() * this->epsilon.getNumerator() * current.getF()) >= (this->focalList->getW().getDenominator() * this->epsilon.getDenominator() * upperbound)) {
+                if (this->shouldWeEarlyTerminate(current.getF(), static_cast<cost_t>(upperbound), current, goal)) {
                     //return the solution by concatenating the current path from start to current and the cpdpath from current to goal
                     //(considering the perturbations!)
-                    info("epsilon * lowerbound >= upperbound! ", epsilon, "*", current.getF(), ">=", upperbound);
-                    info("early terminating from ", *earlyTerminationState, "up until ", *expectedGoal);
-                    goal = this->earlyTerminate(*earlyTerminationState, expectedGoal);
+                    info("early terminating from ", current, "up until ", *expectedGoal);
+                    goal = this->earlyTerminate(current, expectedGoal);
 
-                    current.markAsExpanded();
                     //revise upperbound
+                    info("revising upperbound to ", goal->getG());
                     upperbound = goal->getG();
-                    continue;
+                    //we don't skip the successors, since by following the successor of this node we may improve the solution.
+                    /* for example in C we may early terminate, but we still keep going on expanding states
+                     *
+                     * A -> B -> C -> BIG PERTURBATION -> GOAL
+                     *           |                          ^
+                     *           V                          |
+                     *           F  ----------------------> G
+                     */
                 }
 
                 current.markAsExpanded();
@@ -374,6 +360,13 @@ namespace pathfinding::search {
                         info("child", successor, "of state ", current, "should be pruned!");
                         //skip neighbours already expanded
                         continue;
+                    }
+                    if (goal != nullptr) {
+                        //we already have found a goal. Prune the state if its f is larger  than our solution
+                        if (successor.getF() > upperbound) {
+                            info("child ", successor, "has been pruned since its f is greater than our current solution (", successor.getF(), ">", upperbound);
+                            continue;
+                        }
                     }
 
                     if (this->focalList->containsInOpen(successor)) {
@@ -430,6 +423,8 @@ namespace pathfinding::search {
                             }
                             
                             upperbound = gval + this->heuristic.getLastPerturbatedCost();
+                            //TODO i think the early terminate state shouldn't be saved at all: in focal list this state is not  necessary the one which is pop from focal! (in cpd search it was)
+                            //what we need is not the actual state, but the upperbound revision
                             earlyTerminationState = &successor;
                         }
 
@@ -457,6 +452,46 @@ namespace pathfinding::search {
 
         }
     private:
+        bool shouldWeEarlyTerminate(cost_t lowerbound, cost_t upperbound, const GraphStateReal& current, const GraphStateReal* goal) const {
+            /*
+                * in focal:
+                * f_1(n) <= w * f_1min (w > 1)
+                * 
+                * so here the current may have f(n) >= f_1min && f <= w f_1min
+                * so the maximum lowerbound is w f_1min
+                * 
+                * upperbound/(w f_1min) <= epsilon
+                * 
+                * to preserve the ratio we need to multiply upperbound with w as well
+                * 
+                * w * upperbound/lowerbound <= epsilon
+                * 
+                * nw/dw * upperbound/lowerbound <= nepsilon/depsilon
+                * nw * upperbound * depsilon <=  dw * nepsilon * lowerbound
+                * 
+                * dw * nepsilon * lowerbound >= nw upperbound * depsilon
+                * 
+                * We need to compute several solutions. In the first one the goal has not been found yet, so to ensure that we compute a bounded suboptimal solution
+                * we should have >=. Afterwards we don't care about solutions with the same bound, but we want solutions that improve the cost. So we add such check.
+                */
+            if (goal != nullptr) {
+                //we need to ensure that following this route will actually improve the cost.
+                if ((current.getG() + this->heuristic.getPerturbatedPathCost(current.getId())) < goal->getG() ) {
+                    auto result = ((this->focalList->getW().getNumerator() * this->epsilon.getNumerator() * lowerbound) >= (this->focalList->getW().getDenominator() * this->epsilon.getDenominator() * upperbound));
+                    if (result) {
+                        info("it is true that", this->focalList->getW().getNumerator(), "*", this->epsilon.getNumerator(), "*", lowerbound, ">=", this->focalList->getW().getDenominator(), "*", this->epsilon.getDenominator(), "*", upperbound, "(w_n * epsilon_n * lowerbound >= w_d * epsilon_d * upperbound)");
+                    }
+                    return result;
+                }
+                return false;
+            } else {
+                auto result = ((this->focalList->getW().getNumerator() * this->epsilon.getNumerator() * lowerbound) >= (this->focalList->getW().getDenominator() * this->epsilon.getDenominator() * upperbound));
+                if (result) {
+                    info("it is true that", this->focalList->getW().getNumerator(), "*", this->epsilon.getNumerator(), "*", lowerbound, ">=", this->focalList->getW().getDenominator(), "*", this->epsilon.getDenominator(), "*", upperbound, "(w_n * epsilon_n * lowerbound >= w_d * epsilon_d * upperbound)");
+                }
+                return result;
+            }
+        }
         const GraphStateReal* earlyTerminate(const GraphStateReal& state, const GraphStateReal* expectedGoal) {
             moveid_t nextMove;
             nodeid_t nextVertex;
