@@ -947,7 +947,7 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
         // USE THE FACTORY TO PROVIDE CpdSearch
 
         CpdFocalSearchFactory factory{};
-        auto factory_output = factory.get(cpdManager, perturbatedGraph, cost_t{1}, 1);
+        auto factory_output = factory.get(cpdManager, perturbatedGraph, cost_t{1}, fractional_number<cost_t>{cost_t{1}});
 
         REQUIRE(g.haveSameVertices(perturbatedGraph));
 
@@ -1135,7 +1135,7 @@ SCENARIO("test CpdFocalSearch with suboptimality bound") {
 
         CpdFocalSearchFactory factory{};
         //focal bound set to 2 ==> WA*
-        auto factory_output = factory.get(cpdManager, perturbatedGraph, fractional_number<cost_t>{2}, 1);
+        auto factory_output = factory.get(cpdManager, perturbatedGraph, fractional_number<cost_t>{2}, fractional_number<cost_t>{1});
 
         REQUIRE(g.haveSameVertices(perturbatedGraph));
 
