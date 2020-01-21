@@ -6,6 +6,7 @@
 #include <cpp-utils/MDValue.hpp>
 #include <cpp-utils/LogNumberListener.hpp>
 
+#include <pathfinding-utils/types.hpp>
 #include <pathfinding-utils/FocalList.hpp>
 #include <pathfinding-utils/ISearchAlgorithm.hpp>
 #include <pathfinding-utils/IStatePruner.hpp>
@@ -22,6 +23,7 @@
 namespace pathfinding::search {
 
     using namespace cpp_utils;
+    using namespace pathfinding;
     using namespace compressed_path_database;
     using namespace pathfinding::data_structures;
 
@@ -611,7 +613,7 @@ namespace pathfinding::search {
          * @return cpd search algorithm
          */
         template <typename G, typename V>
-        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, const fractional_number<cost_t>& focalListW, const fractional_number<cost_t>& epsilon) {
+        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, const fractional_cost& focalListW, const fractional_cost& epsilon) {
             return new output_t<G, V>{
                 cpdManager,
                 perturbatedGraph,

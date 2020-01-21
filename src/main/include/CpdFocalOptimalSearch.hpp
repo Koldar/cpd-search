@@ -6,6 +6,7 @@
 #include <cpp-utils/MDValue.hpp>
 #include <cpp-utils/LogNumberListener.hpp>
 
+#include <pathfinding-utils/types.hpp>
 #include <pathfinding-utils/FocalList.hpp>
 #include <pathfinding-utils/ISearchAlgorithm.hpp>
 #include <pathfinding-utils/IStatePruner.hpp>
@@ -21,8 +22,8 @@
 
 namespace pathfinding::search {
 
-    using namespace cpp_utils;
     using namespace compressed_path_database;
+    using namespace pathfinding;
     using namespace pathfinding::data_structures;
 
     namespace internal {
@@ -67,6 +68,14 @@ namespace pathfinding::search {
      * 
      * As soon as a solution is found, the upperbound is set to its cost.
      * 
+     * 
+     * IMportant notes
+     * ===============
+     * 
+     * @li when we revise the upperbound in the successors of a state we don't save the successors that has revised the upperbound last, since such successor it not necessary the next element popped from focal list: in this step we don't compute a new goal. Hence for this very reason, goal->getG() != upperbound (albeit at the ne dof the algorithm we have that goal->getG() == upperbound)
+     * @li when we early terminate or wyhen we get a new goal, we check first if the new path is actually shorter than the previous one. this because this search is NOT a bestFirst search, so it is possible to obtain worse solution temporary;
+     * @li the heuristic is consisent, but the search is not a bestFirst search, so items in the closed list can be put in open again if new_g < old_g;
+     * @li if the upperbound is less than the lowerbound and no solutions have been found, the search has no solutions.
      * 
      * @tparam GraphState<G,V> 
      * @tparam G 
@@ -270,7 +279,6 @@ namespace pathfinding::search {
              */
             MCValue<cost_t> lowerbound = cost_t{0};
             lowerbound.setListener(LogNumberListener<cost_t>{"lowerbound", 8});
-            const GraphStateReal* earlyTerminationState = nullptr;
 
             GraphStateReal* startPtr = &start;
             start.setG(0);
@@ -304,20 +312,38 @@ namespace pathfinding::search {
                 GraphStateReal& current = this->focalList->peekFromFocal();
                 GraphStateReal* currentPtr = &current;
                 info("************************* NEW A* STEP #", astarStepCounter, "*****************************");
-                info("PEEK FROM OPEN: ", current, " f=", current.getF(), "g=", current.getG(), "h=", current.getH(), "bestF=", lowerbound);
+                critical("PEEK FROM FOCAL: ", current, " f=", current.getF(), "g=", current.getG(), "h=", current.getH(), "lowerbound=", lowerbound, "upperbound=", upperbound, "goal cost=", goal != nullptr ? goal->getG() : 0, "open size", this->focalList->getOpenListSize(), "focal size", this->focalList->getFocalListSize());
+
+                DO_ON_DEBUG_IF(goal != nullptr && goal->getG() < upperbound) {
+                    throw cpp_utils::exceptions::makeImpossibleException("goal", *goal, "is supposed to always be >= to the upperbound", upperbound);
+                }
+
+                //check if g is greater than the upperbound: if we pop a state with g > upperbound, then we can safely put it in closed list, since it cannot be a goal. Since we are in non best-first search, there may happen that in the next iteration we are able to find a better path : in that case we will open the node again
+                if (current.getG() > upperbound) {
+                    info("put state in closed list since g>upperbound");
+                    this->focalList->popFromFocal();
+                    current.markAsExpanded();
+                    continue;
+                }
 
                 //check if the peeked state is actually a goal
                 if (this->goalChecker.isGoal(current, expectedGoal)) {
-                    info("GOAL STATE REACHED ", current);
-                    goal = &current;
-
+                    //we need to ensure that the goal reached has a shorter path w.r.t the previous goal
+                    //otherwise we ignore this goal. We can obtain a goal via a longer path because this is NOT a best first search!
+                    
                     //pop from focal
-                    current.markAsExpanded();
-                    upperbound = current.getG();
                     this->focalList->popFromFocal();
+                    current.markAsExpanded();
 
-                    //the goal we have found might not be the optimal. we need to keep going
-                    this->fireEvent([&current](Listener& l) { l.onSolutionFound(current); });
+                    //we update the goal only if this one improves the cost of the last one
+                    if (this->isGoalFoundBetter(static_cast<cost_t>(upperbound), goal, current)) {
+                        info("GOAL STATE REACHED ", current);
+                        goal = &current;
+                        //we revise the upperbound
+                        upperbound = goal->getG();
+                        //the goal we have found might not be the optimal. we need to keep going
+                        this->fireEvent([&current](Listener& l) { l.onSolutionFound(current); });
+                    }
 
                     // we have reached the goal. It's impossible to go to the goal using the goal with an alternate route.
                     //keep going
@@ -325,6 +351,7 @@ namespace pathfinding::search {
                 }
 
                 this->focalList->popFromFocal();
+                current.markAsExpanded();
 
                 //ok, this node wasn't a goal. Check the bound. Sometimes the bounds tell us if we need to stop searching
                 critical("checking bound: lowerbound >= upperbound ? (", lowerbound, ">=", upperbound, ")");
@@ -338,7 +365,6 @@ namespace pathfinding::search {
                     //the lowerbound is strictly greater than the upperbound, so no solution can possibly be found.
                     if (static_cast<cost_t>(lowerbound) > static_cast<cost_t>(upperbound)) {
                         //we need to prune the state since it's impossible that the state will be able to reduce the upperbound
-                        current.markAsExpanded();
                         continue;
                     }
                 }
@@ -364,7 +390,7 @@ namespace pathfinding::search {
                      */
                 }
 
-                current.markAsExpanded();
+                //current.markAsExpanded();
                 this->fireEvent([currentPtr](Listener& l) {l.onNodeExpanded(*currentPtr); });
 
                 info("computing successors of state ", current, "...");
@@ -381,38 +407,30 @@ namespace pathfinding::search {
                         continue;
                     }
 
-                    //the states we pop from the focal list are within w bound. so f(n) >= w*f_min 
-                    // if (goal != nullptr) {
-                    //     //we already have found a goal. Prune the state if its f is larger  than our solution
-                    //     if (successor.getF() > upperbound) {
-                    //         info("child ", successor, "has been pruned since its f is greater than our current solution (", successor.getF(), ">", upperbound);
-                    //         continue;
-                    //     }
-                    // }
-
                     if (this->focalList->containsInOpen(successor)) {
                         //state inside the open list. Check if we need to update the path
                         cost_t gval = current.getG() + current_to_successor_cost;
-                        info("child", successor, "already present in open list. Check if its g is improved...");
-                        if (gval < successor.getG()) {
-                            info("child", successor, "of state ", current, "present in open list and has a lower g. update its parent!");
+                        if (gval >= successor.getG()) {
+                            info("child", successor, "already present in open list but its g was not improved");
+                            continue;
+                        } 
+                        info("child", successor, "of state ", current, "present in open list and its g has been improved from", successor.getG(), "to", gval);
 
-                            cost_t oldSuccessorF = successor.getF();
-                            //update successor information
-                            successor.setG(gval);
-                            successor.setF(this->computeF(gval, successor.getH()));
-                            const GraphStateReal* oldParent = successor.getParent();
-                            successor.setParent(&current);
+                        cost_t oldSuccessorF = successor.getF();
+                        //update successor information
+                        successor.setG(gval);
+                        successor.setF(this->computeF(gval, successor.getH()));
+                        const GraphStateReal* oldParent = successor.getParent();
+                        successor.setParent(&current);
 
-                            this->focalList->decreaseOpenListKey(successor);
+                        this->focalList->decreaseOpenListKey(successor);
 
 
-                            // the previous code was, but it didn't handle well fractional w. if ((oldSuccessorF > this->focalList->getW() * lowerbound) && (successor.getF() <= (this->focalList->getW() * lowerbound)))
-                            //should be in focal perform this step: this->w.getDenominator() * n <= this->w.getNumerator() * lowerbound;
-                            if (!this->focalList->shouldBeInFocal(oldSuccessorF, static_cast<cost_t>(lowerbound)) && this->focalList->shouldBeInFocal(successor.getF(), static_cast<cost_t>(lowerbound))) {
-                                //the successor was not inside the focal list but now with this update it is
-                                this->focalList->promoteToFocal(successor);
-                            }
+                        // the previous code was, but it didn't handle well fractional w. if ((oldSuccessorF > this->focalList->getW() * lowerbound) && (successor.getF() <= (this->focalList->getW() * lowerbound)))
+                        //should be in focal perform this step: this->w.getDenominator() * n <= this->w.getNumerator() * lowerbound;
+                        if (!this->focalList->shouldBeInFocal(oldSuccessorF, static_cast<cost_t>(lowerbound)) && this->focalList->shouldBeInFocal(successor.getF(), static_cast<cost_t>(lowerbound))) {
+                            //the successor was not inside the focal list but now with this update it is
+                            this->focalList->promoteToFocal(successor);
                         }
                     } else if (successor.isExpanded()) {
                         //state is in closed list
@@ -421,8 +439,10 @@ namespace pathfinding::search {
                         //check if there is scenario where we can ignore the state
                         // no solution has been found yet
                         if (gval >= successor.getG()) {
+                            info("child", successor, "was closed but its g was still better than via ", current);
                             continue;
                         }
+                        info("child", successor, "was closed but its g has been improved by going via ", current, "from", successor.getG(), "to", gval);
 
                         //otherwise reput in openlist
                         //reput in open list
@@ -461,16 +481,9 @@ namespace pathfinding::search {
                         //we may have a new upperbound of the solution
                         if (upperbound > gval + this->heuristic.getLastPerturbatedCost()) {
                             info("updating upperbound. upperbound: from", upperbound, "to", gval + this->heuristic.getLastPerturbatedCost());
-                            if (earlyTerminationState == nullptr) {
-                                info("updating incumbent. incumbent: from null to", successor);
-                            } else {
-                                info("updating incumbent. incumbent: from", *earlyTerminationState, "to", successor);
-                            }
-                            
                             upperbound = gval + this->heuristic.getLastPerturbatedCost();
-                            //TODO i think the early terminate state shouldn't be saved at all: in focal list this state is not  necessary the one which is pop from focal! (in cpd search it was)
-                            //what we need is not the actual state, but the upperbound revision
-                            earlyTerminationState = &successor;
+                            info("early terminating from ", successor, "up until ", *expectedGoal, ". New solution updated");
+                            goal = this->earlyTerminate(current, expectedGoal);
                         }
 
                         info("child", successor, "of state ", current, "not present in open list. Add it f=", successor.getF(), "g=", successor.getG(), "h=", successor.getH(), "(lowerbound of focal is", lowerbound, ")");
@@ -499,6 +512,21 @@ namespace pathfinding::search {
 
         }
     private:
+        /**
+         * @brief check if the goal we have just found improve the last goal found or not
+         * 
+         * @param previousGoal the previous goal found. if nullptr no goal waspreviously found
+         * @param currentGoal the goal we have just reached
+         * @return true if @c currentGoal is better than @c previousGoal
+         * @return false otherwise
+         */
+        bool isGoalFoundBetter(cost_t upperbound, const GraphStateReal* previousGoal, const GraphStateReal& currentGoal) const {
+            if (previousGoal != nullptr) {
+                return currentGoal.getG() < upperbound;
+            } else {
+                return true;
+            }
+        }
         bool shouldWeEarlyTerminate(cost_t lowerbound, cost_t upperbound, const GraphStateReal& current, const GraphStateReal* goal) const {
             /*
                 * in focal:
@@ -524,8 +552,8 @@ namespace pathfinding::search {
             if (goal != nullptr) {
                 //we need to ensure that following this route will actually improve the cost.
                 auto newSolutionCost = current.getG() + this->heuristic.getCPDPathPerturbatedWeights(current.getId());
-                info("checking if current solution with cost ", goal->getG(), "is worse than the new solution of cost", newSolutionCost, "(current.g = ", current.getG(), ", perturbated path cost", this->heuristic.getCPDPathPerturbatedWeights(current.getId()), ")");
-                if (newSolutionCost < goal->getG() ) {
+                info("checking if current solution with cost ", upperbound, "is worse than the new solution of cost", newSolutionCost, "(current.g = ", current.getG(), ", perturbated path cost", this->heuristic.getCPDPathPerturbatedWeights(current.getId()), ")");
+                if (newSolutionCost < upperbound ) {
                     auto result = ((this->focalList->getW().getNumerator() * this->epsilon.getNumerator() * lowerbound) >= (this->focalList->getW().getDenominator() * this->epsilon.getDenominator() * upperbound));
                     if (result) {
                         info("it is true that", this->focalList->getW().getNumerator(), "*", this->epsilon.getNumerator(), "*", lowerbound, ">=", this->focalList->getW().getDenominator(), "*", this->epsilon.getDenominator(), "*", upperbound, "(w_n * epsilon_n * lowerbound >= w_d * epsilon_d * upperbound)");
@@ -572,7 +600,7 @@ namespace pathfinding::search {
      * @brief simple class that create the cpd search more easily
      * 
      */
-    class CpdFocalSearchOptimalFactory {
+    class CpdFocalOptimalSearchFactory {
     public:
         template <typename G, typename V>
         struct output_t {

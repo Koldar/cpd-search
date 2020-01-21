@@ -5,6 +5,8 @@
 
 #include <pathfinding-utils/AStarTrackerListener.hpp>
 
+#include "CpdSearchListener.hpp"
+
 namespace pathfinding::search {
 
     using namespace cpp_utils;
