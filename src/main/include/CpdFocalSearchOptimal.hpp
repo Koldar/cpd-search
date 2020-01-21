@@ -4,10 +4,12 @@
 #include <cpp-utils/listeners.hpp>
 #include <cpp-utils/MCValue.hpp>
 #include <cpp-utils/MDValue.hpp>
+#include <cpp-utils/LogNumberListener.hpp>
 
 #include <pathfinding-utils/FocalList.hpp>
 #include <pathfinding-utils/ISearchAlgorithm.hpp>
 #include <pathfinding-utils/IStatePruner.hpp>
+#include <pathfinding-utils/StandardStateExpander.hpp>
 #include <pathfinding-utils/StandardLocationGoalChecker.hpp>
 #include <pathfinding-utils/NeverPrune.hpp>
 
@@ -262,10 +264,12 @@ namespace pathfinding::search {
             
             const GraphStateReal* goal = nullptr;
             MDValue<cost_t> upperbound = cost_t::INFTY;
+            upperbound.setListener(LogNumberListener<cost_t>{"upperbound", 8});
             /*
              * the smallest f-value in the open list. this value tends to get bigger and bigger
              */
             MCValue<cost_t> lowerbound = cost_t{0};
+            lowerbound.setListener(LogNumberListener<cost_t>{"lowerbound", 8});
             const GraphStateReal* earlyTerminationState = nullptr;
 
             GraphStateReal* startPtr = &start;
@@ -284,13 +288,13 @@ namespace pathfinding::search {
             start.setF(this->computeF(start.getG(), start.getH()));
             this->focalList->pushInOpenAndInFocal(start);
             lowerbound = start.getF();
-            critical("the perturbated path cost from start to goal is", this->heuristic.getLastPerturbatedCost());
             upperbound = start.getG() + this->heuristic.getLastPerturbatedCost();
 
+            int astarStepCounter = 0;
             while (!this->focalList->isOpenEmpty()) {
 
                 //UPDATE FOCAL LIST
-                //bestF represents the value with the smaller f value. It is basically the lowerbound
+                //f_min represents the value with the smaller f value. It is basically the lowerbound
                 lowerbound = this->focalList->updateFocalWithOpenChanges(static_cast<cost_t>(lowerbound));
 
                 DO_ON_DEBUG {
@@ -299,12 +303,12 @@ namespace pathfinding::search {
 
                 GraphStateReal& current = this->focalList->peekFromFocal();
                 GraphStateReal* currentPtr = &current;
-                info("************************* NEW A* STEP *****************************");
-                info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH(), "bestF=", lowerbound);
+                info("************************* NEW A* STEP #", astarStepCounter, "*****************************");
+                info("PEEK FROM OPEN: ", current, " f=", current.getF(), "g=", current.getG(), "h=", current.getH(), "bestF=", lowerbound);
 
                 //check if the peeked state is actually a goal
                 if (this->goalChecker.isGoal(current, expectedGoal)) {
-                    info("state ", current, "is a goal!");
+                    info("GOAL STATE REACHED ", current);
                     goal = &current;
 
                     //pop from focal
@@ -322,22 +326,25 @@ namespace pathfinding::search {
 
                 this->focalList->popFromFocal();
 
-                // check if we have computed the optimal solution
-                //we have already computed a solution. Let's check if we have reached optimality
-                if (static_cast<cost_t>(lowerbound) >= static_cast<cost_t>(upperbound)) {
-                    if (goal != nullptr) {
-                        info("we have a solution. ", upperbound, "<=", lowerbound, "! Yeiling optimal solution");
+                //ok, this node wasn't a goal. Check the bound. Sometimes the bounds tell us if we need to stop searching
+                critical("checking bound: lowerbound >= upperbound ? (", lowerbound, ">=", upperbound, ")");
+                if (goal != nullptr) {
+                    //we have a solution. since the lb >= ub, we can only fetch symmetric optimal solutions, hence we stop
+                    if (static_cast<cost_t>(lowerbound) >= static_cast<cost_t>(upperbound)) {
+                        info("we have the optimal solution. ", upperbound, "<=", lowerbound, "! Yeiling optimal solution");
                         goto optimal_solution_found;
-                    } else {
+                    }
+                } else {
+                    //the lowerbound is strictly greater than the upperbound, so no solution can possibly be found.
+                    if (static_cast<cost_t>(lowerbound) > static_cast<cost_t>(upperbound)) {
                         //we need to prune the state since it's impossible that the state will be able to reduce the upperbound
                         current.markAsExpanded();
                         continue;
                     }
-                    
                 }
 
-                //current.get() is not the same of lowerbound, since the usage of focal may have chosen something that has not the minimum f!
                 // ok, no optimal solution was found, but at least we might have a lower solution. Check if we have at least a bounded solution
+                //current.get() is not the same of lowerbound, since the usage of focal may have chosen something that has not the minimum f!
                 if (this->shouldWeEarlyTerminate(current.getF(), static_cast<cost_t>(upperbound), current, goal)) {
                     //return the solution by concatenating the current path from start to current and the cpdpath from current to goal
                     //(considering the perturbations!)
@@ -366,13 +373,15 @@ namespace pathfinding::search {
                     cost_t current_to_successor_cost = pair.second;
                     info("handling successor", successor, "( cost from parent ", current_to_successor_cost, ")");
 
-                    //remember: this is NOT a best first search, so we may need to reopen states
+                    //remember: this is NOT a best first search, so we may need to reopen states (even if the heuristic is consistent)
                     //however, since the heuristic is assumed to be consistent, the lowerbound never decreases
                     if (this->pruner.shouldPrune(successor)) {
                         info("child", successor, "of state ", current, "should be pruned!");
                         //skip neighbours already expanded
                         continue;
                     }
+
+                    //the states we pop from the focal list are within w bound. so f(n) >= w*f_min 
                     // if (goal != nullptr) {
                     //     //we already have found a goal. Prune the state if its f is larger  than our solution
                     //     if (successor.getF() > upperbound) {
@@ -410,16 +419,9 @@ namespace pathfinding::search {
                         cost_t gval = current.getG() + current_to_successor_cost;
 
                         //check if there is scenario where we can ignore the state
-                        if (goal != nullptr) {
-                            //a solution has been already found: we care only if we effectively reduce the g vaue
-                            if (gval > successor.getG()) {
-                                continue;
-                            }
-                        } else {
-                            // no solution has been found yet
-                            if (gval >= successor.getG()) {
-                                continue;
-                            }
+                        // no solution has been found yet
+                        if (gval >= successor.getG()) {
+                            continue;
                         }
 
                         //otherwise reput in openlist
@@ -482,6 +484,8 @@ namespace pathfinding::search {
                         
                     }
                 }
+
+                astarStepCounter += 1;
             }
             //the open list is empty, but we may have found a solution. If we have found one, we simple return
             if (goal == nullptr) {
