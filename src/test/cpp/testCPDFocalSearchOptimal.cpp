@@ -1,10 +1,17 @@
 #include "catch.hpp"
-#include "CpdFocalSearchOptimal.hpp"
+
 #include <pathfinding-utils/MovingAIGridMapReader.hpp>
 #include <pathfinding-utils/GridMapGraphConverter.hpp>
+#include <pathfinding-utils/utils.hpp>
+#include <pathfinding-utils/pathValidators.hpp>
+
+#include "CpdSearchTrackerListener.hpp"
+#include "CpdFocalOptimalSearch.hpp"
+#include "PerturbatedCost.hpp"
 
 using namespace cpp_utils;
 using namespace pathfinding;
+using namespace pathfinding::utils;
 using namespace pathfinding::maps;
 using namespace pathfinding::search;
 
@@ -60,7 +67,7 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-opti
 
         // USE THE FACTORY TO PROVIDE CpdSearch
 
-        CpdFocalSearchOptimalFactory factory{};
+        CpdFocalOptimalSearchFactory factory{};
         //focal bound set to 2 ==> WA*
         auto factory_output = factory.get(cpdManager, perturbatedGraph, fractional_number<cost_t>{2}, fractional_number<cost_t>{1});
 
@@ -151,5 +158,105 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-opti
         }
 
         delete factory_output;
+    }
+}
+
+template <typename G, typename V, typename E>
+void performCpdFocalSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridMap& gridMap, const boost::filesystem::path& basename, const IImmutableGraph<G,V,E>& originalMap, const IImmutableGraph<G,V,PerturbatedCost>& perturbatedGraph, const CpdManager<G,V>& cpdManager, fractional_cost w, fractional_cost epsilon) {
+    CpdFocalOptimalSearchFactory factory{};
+    //focal bound set to 2 ==> WA*
+    auto factory_output = factory.get(cpdManager, perturbatedGraph, w, epsilon);
+    CpdSearchTrackerListener<std::string, xyLoc, PerturbatedCost, GraphFocalState<std::string, xyLoc, PerturbatedCost>> listener{perturbatedGraph};
+    factory_output->search.setListener(listener);
+
+    nodeid_t startId = perturbatedGraph.idOfVertex(startLoc);
+    nodeid_t goalId = perturbatedGraph.idOfVertex(goalLoc);
+
+    factory_output->search.setupSearch(nullptr, nullptr);
+    auto start = &(factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT));
+    auto goal = &(factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT));
+
+    auto solution = factory_output->search.search(*start, *goal, false, false);
+    critical("solution found!");
+
+    info("drawing image of the perturbated graph together with search info!");
+    //draw the grid and the perturbations on it
+    costFunction_t<PerturbatedCost> costFunction = [&] (const PerturbatedCost& p) { return p.getCost();};
+    auto image = createGridMapPerturbatedMap(
+        static_cast<const GridMap&>(gridMap), originalMap, perturbatedGraph, color_t::RED, color_t::BLUE, costFunction
+    );
+    //now add to the map the expanded nodes
+    for (auto it=listener.getVisitedStates().beginVertices(); it!=listener.getVisitedStates().endVertices(); ++it) {
+        auto loc = perturbatedGraph.getVertex(it->first);
+        auto data = it->second;
+        if (data == statevisited_e::UNVISITED) {
+                //do nothing;
+        } else if (data == statevisited_e::GENERATED) {
+            image->lerpGridCellColor(loc, color_t::YELLOW.scale(0.8));
+        } else if (data == statevisited_e::EXPANDED) {
+            image->lerpGridCellColor(loc, color_t::YELLOW.scale(0.6));
+        } else {
+            throw cpp_utils::exceptions::makeInvalidArgumentException(data);
+        }
+    }
+
+    //add path
+    for (auto s : *solution) {
+        image->lerpGridCellColor(perturbatedGraph.getVertex(s->getId()), color_t::BLUE.lighter(0.2));
+    }
+
+    image->saveBMP("./query1");
+    delete image;
+
+    std::function<nodeid_t(const GraphFocalState<std::string, xyLoc, PerturbatedCost>*)> mapper2 = [&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) -> nodeid_t { return x->getPosition(); };
+
+    validator::checkIfPathOptimal(
+        perturbatedGraph,
+        startId, goalId,
+        *solution,
+        costFunction,
+        mapper2
+    );
+}
+
+SCENARIO("test cpd focal optimal search failed queries") {
+
+    GIVEN("query 1") {
+
+        //CREATE ORIGINAL GRAPH
+        MovingAIGridMapReader reader{
+            '.', 1000, color_t::WHITE,
+            'T', 1500, color_t::GREEN,
+            'S', 2000, color_t::CYAN,
+            'W', 2500, color_t::BLUE,
+            '@', cost_t::INFTY, color_t::BLACK
+        };
+        GridMap gridMap = reader.load(boost::filesystem::path{"./arena2.map"});
+        GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
+        AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
+        // INCLUDE THE CPD REORDERING
+        CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./arena2.cpd"}, graph};
+        const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
+        // CREATE PERTURBATED GRAPH
+        boost::filesystem::path perturbatedEdgesPath{"./arena2-900-perturbated.graph"};
+        cpp_utils::function_t<cost_t, PerturbatedCost> mapper = [&](const cost_t& c) { return PerturbatedCost{c, false};};
+        std::unique_ptr<IImmutableGraph<std::string,xyLoc,PerturbatedCost>> perturbatedGraph{pathfinding::utils::loadPerturbatedMap(
+                perturbatedEdgesPath, g, mapper
+        )};
+        // USE THE FACTORY TO PROVIDE THE SEARCH
+        REQUIRE(g.haveSameVertices(*perturbatedGraph));
+
+        WHEN("query 1") {
+            xyLoc startLoc{16, 105};
+            xyLoc goalLoc{277, 206};
+            performCpdFocalSearchOptimalTest(
+                startLoc, goalLoc, 
+                gridMap, "./query1", 
+                g, *perturbatedGraph, 
+                cpdManager, 
+                fractional_cost{1.1, 1e-3}, fractional_cost{1}
+            );
+        }
+
     }
 }
