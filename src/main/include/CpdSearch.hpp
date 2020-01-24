@@ -88,11 +88,11 @@ namespace pathfinding::search {
      * @tparam V type of the payload of each vertex in map graph
      */
     template <typename G, typename V>
-    class CpdSearch: public IMemorable, public ISearchAlgorithm<GraphState<G, V, PerturbatedCost>, const GraphState<G, V, PerturbatedCost>*, const GraphState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdSearchListener<G, V, GraphState<G, V, PerturbatedCost>>> {
-        typedef GraphState<G, V, PerturbatedCost> GraphStateReal;
-        typedef CpdSearch<G, V> This;
-        typedef CpdSearchListener<G, V, GraphState<G, V, PerturbatedCost>> Listener;
-        typedef ISingleListenable<Listener> Super2;
+    class CpdSearch: public IMemorable, public ISearchAlgorithm<GraphState<G, V, PerturbatedCost>, const GraphState<G, V, PerturbatedCost>*, const GraphState<G, V, PerturbatedCost>&>, public ISingleListenable<listeners::CpdSearchListener<G, V, GraphState<G, V, PerturbatedCost>>> {
+        using GraphStateReal = GraphState<G, V, PerturbatedCost>;
+        using This =  CpdSearch<G, V>;
+        using Listener = listeners::CpdSearchListener<G, V, GraphState<G, V, PerturbatedCost>>;
+        using Super2 = ISingleListenable<Listener>;
     public:
         /**
          * @brief Construct a new Time Cpd Search object
@@ -208,14 +208,15 @@ namespace pathfinding::search {
             }
             
 
+            int aStarIteration = 0;
             const GraphStateReal* goal = nullptr;
             cost_t upperbound = cost_t::INFTY;
             const GraphStateReal* earlyTerminationState = nullptr;
 
             start.setG(0);
-            this->fireEvent([&, start](Listener& l) {l.onStartingComputingHeuristic(start); });
+            this->fireEvent([&, start, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, start); });
             start.setH(this->heuristic.getHeuristic(start, expectedGoal));
-            this->fireEvent([&, start](Listener& l) {l.onEndingComputingHeuristic(start); });
+            this->fireEvent([&, start, aStarIteration](Listener& l) {l.onEndingComputingHeuristic(aStarIteration, start); });
             start.setF(this->computeF(start.getG(), start.getH()));
 
             this->openList->push(start);
@@ -246,13 +247,13 @@ namespace pathfinding::search {
                     info("epsilon * lowerbound >= upperbound! ", epsilon, "*", current.getF(), ">=", upperbound);
                     info("early terminating from ", *earlyTerminationState, "up until ", *expectedGoal);
                     goal = this->earlyTerminate(*earlyTerminationState, expectedGoal);
-                    this->fireEvent([&, earlyTerminationState, goal](Listener& l) {l.onEarlyTerminationActivated(*earlyTerminationState, *goal); });
+                    this->fireEvent([&, earlyTerminationState, goal, aStarIteration](Listener& l) {l.onEarlyTerminationActivated(aStarIteration, *earlyTerminationState, *goal); });
 
                     goto goal_found;
                 }
 
                 current.markAsExpanded();
-                this->fireEvent([&, current](Listener& l) {l.onNodeExpanded(current); });
+                this->fireEvent([&, current, aStarIteration](Listener& l) {l.onNodeExpanded(aStarIteration, current); });
 
                 info("computing successors of state ", current, "...");
                 for(auto pair: this->expander.getSuccessors(current, this->supplier)) {
@@ -282,15 +283,15 @@ namespace pathfinding::search {
                     } else {
                         //state is not present in open list. Add to it
                         cost_t gval = current.getG() + current_to_successor_cost;
-                        this->fireEvent([&, successor](Listener& l) {l.onStartingComputingHeuristic(successor); });
+                        this->fireEvent([&, successor, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, successor); });
                         cost_t hval = this->heuristic.getHeuristic(successor, expectedGoal);
-                        this->fireEvent([&, successor](Listener& l) {l.onEndingComputingHeuristic(successor); });
+                        this->fireEvent([&, successor, aStarIteration](Listener& l) {l.onEndingComputingHeuristic(aStarIteration, successor); });
                         
                         successor.setG(gval);
                         successor.setH(hval);
                         successor.setF(this->computeF(gval, hval));
                         successor.setParent(&current);
-                        this->fireEvent([&, successor](Listener& l) {l.onNodeGenerated(successor); });
+                        this->fireEvent([&, successor, aStarIteration](Listener& l) {l.onNodeGenerated(aStarIteration, successor); });
 
                         //we may have a new upperbound of the solution
                         if (upperbound > gval + this->heuristic.getLastPerturbatedCost()) {
@@ -302,7 +303,7 @@ namespace pathfinding::search {
                             }
                             
                             auto newupperbound = gval + this->heuristic.getLastPerturbatedCost();
-                            this->fireEvent([&, successor](Listener& l) {l.onUpperboundRevised(successor, upperbound, newupperbound); });
+                            this->fireEvent([&, successor, aStarIteration](Listener& l) {l.onUpperboundRevised(aStarIteration, successor, upperbound, newupperbound); });
                             upperbound = newupperbound;
 
                             earlyTerminationState = &successor;
@@ -312,6 +313,8 @@ namespace pathfinding::search {
                         this->openList->push(successor);
                     }
                 }
+
+                aStarIteration += 1;
             }
             info("found no solutions!");
             throw SolutionNotFoundException{};

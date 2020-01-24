@@ -6,14 +6,17 @@
 #include <pathfinding-utils/pathValidators.hpp>
 
 #include "CpdSearchTrackerListener.hpp"
+#include "CpdFocalSearchTrackerListener.hpp"
 #include "CpdFocalOptimalSearch.hpp"
 #include "PerturbatedCost.hpp"
+#include "CpdFocalSearchImageProducerListener.hpp"
 
 using namespace cpp_utils;
 using namespace pathfinding;
 using namespace pathfinding::utils;
 using namespace pathfinding::maps;
 using namespace pathfinding::search;
+using namespace pathfinding::search::listeners;
 
 
 SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-optimal-search]") {
@@ -163,10 +166,12 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-opti
 
 template <typename G, typename V, typename E>
 void performCpdFocalSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridMap& gridMap, const boost::filesystem::path& basename, const IImmutableGraph<G,V,E>& originalMap, const IImmutableGraph<G,V,PerturbatedCost>& perturbatedGraph, const CpdManager<G,V>& cpdManager, fractional_cost w, fractional_cost epsilon) {
+    static costFunction_t<PerturbatedCost> costFunction = [&](auto pc) { return pc.getCost();};
     CpdFocalOptimalSearchFactory factory{};
     //focal bound set to 2 ==> WA*
     auto factory_output = factory.get(cpdManager, perturbatedGraph, w, epsilon);
-    CpdSearchTrackerListener<std::string, xyLoc, PerturbatedCost, GraphFocalState<std::string, xyLoc, PerturbatedCost>> listener{perturbatedGraph};
+    CpdFocalSearchImageProducerListener<std::string, xyLoc, cost_t, PerturbatedCost, GraphFocalState<std::string, xyLoc, PerturbatedCost>, GridMap, GridMapImage> listener{originalMap, perturbatedGraph, gridMap, costFunction};
+    //CpdFocalSearchTrackerListener<std::string, xyLoc, PerturbatedCost, GraphFocalState<std::string, xyLoc, PerturbatedCost>> listener{perturbatedGraph};
     factory_output->search.setListener(listener);
 
     nodeid_t startId = perturbatedGraph.idOfVertex(startLoc);
@@ -181,29 +186,24 @@ void performCpdFocalSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridM
 
     info("drawing image of the perturbated graph together with search info!");
     //draw the grid and the perturbations on it
-    costFunction_t<PerturbatedCost> costFunction = [&] (const PerturbatedCost& p) { return p.getCost();};
-    auto image = createGridMapPerturbatedMap(
-        static_cast<const GridMap&>(gridMap), originalMap, perturbatedGraph, color_t::RED, color_t::BLUE, costFunction
-    );
-    //now add to the map the expanded nodes
-    for (auto it=listener.getVisitedStates().beginVertices(); it!=listener.getVisitedStates().endVertices(); ++it) {
-        auto loc = perturbatedGraph.getVertex(it->first);
-        auto data = it->second;
-        if (data == statevisited_e::UNVISITED) {
-                //do nothing;
-        } else if (data == statevisited_e::GENERATED) {
-            image->lerpGridCellColor(loc, color_t::YELLOW.scale(0.8));
-        } else if (data == statevisited_e::EXPANDED) {
-            image->lerpGridCellColor(loc, color_t::YELLOW.scale(0.6));
-        } else {
-            throw cpp_utils::exceptions::makeInvalidArgumentException(data);
-        }
-    }
-
-    //add path
-    for (auto s : *solution) {
-        image->lerpGridCellColor(perturbatedGraph.getVertex(s->getId()), color_t::BLUE.lighter(0.2));
-    }
+    GridMapImage* image = gridMap.getPPM();
+    *image = static_cast<GridMapImage&>(addPerturbationsOnMap(
+        *image, gridMap, 
+        originalMap, perturbatedGraph,
+        color_t::RED, color_t::BLUE, costFunction
+    ));
+    function_t<VertexInfo<xyLoc>, statevisited_e> toState = [&](auto e) { return e.state;};
+    *image = static_cast<GridMapImage&>(addExpandedNodesInImage(
+        *image, gridMap,
+        perturbatedGraph, listener.getVisitedStates(), toState,
+        color_t::BLACK, color_t::YELLOW.scale(0.6), color_t::YELLOW.scale(0.8)
+    ));
+    
+    *image = static_cast<GridMapImage&>(addPathInImage(
+        *image, gridMap, 
+        perturbatedGraph, listener.getSolution(),
+        color_t::VIOLET.scale(0.6), color_t::VIOLET.scale(0.3), color_t::VIOLET.scale(0.3)
+    ));
 
     image->saveBMP("./query1");
     delete image;

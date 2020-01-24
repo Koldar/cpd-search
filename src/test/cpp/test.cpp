@@ -19,7 +19,9 @@
 #include "CountCpdSearchListener.hpp"
 
 using namespace pathfinding::search;
+using namespace pathfinding::search::listeners;
 using namespace pathfinding::maps;
+
 using namespace cpp_utils::graphs;
 using namespace compressed_path_database;
 

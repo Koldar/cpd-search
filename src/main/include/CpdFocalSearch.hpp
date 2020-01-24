@@ -18,7 +18,7 @@
 #include "CpdFocalHeuristic.hpp"
 #include "CpdFocalExpander.hpp"
 #include "CpdFocalSupplier.hpp"
-#include "CpdSearchListener.hpp"
+#include "CpdFocalSearchListener.hpp"
 
 namespace pathfinding::search {
 
@@ -90,11 +90,11 @@ namespace pathfinding::search {
      * @tparam OTHER 
      */
     template <typename G, typename V>
-    class CpdFocalSearch: public IMemorable, public ISearchAlgorithm<GraphFocalState<G, V, PerturbatedCost>, const GraphFocalState<G, V, PerturbatedCost>*, const GraphFocalState<G, V, PerturbatedCost>&>, public ISingleListenable<CpdSearchListener<G, V, GraphFocalState<G, V, PerturbatedCost>>> {
-        typedef GraphFocalState<G, V, PerturbatedCost> GraphStateReal;
-        typedef CpdFocalSearch<G, V> This;
-        typedef CpdSearchListener<G, V, GraphStateReal> Listener;
-        typedef ISingleListenable<Listener> Super2;
+    class CpdFocalSearch: public IMemorable, public ISearchAlgorithm<GraphFocalState<G, V, PerturbatedCost>, const GraphFocalState<G, V, PerturbatedCost>*, const GraphFocalState<G, V, PerturbatedCost>&>, public ISingleListenable<listeners::CpdFocalSearchListener<G, V, GraphFocalState<G, V, PerturbatedCost>>> {
+        using GraphStateReal = GraphFocalState<G, V, PerturbatedCost>;
+        using This = CpdFocalSearch<G, V>;
+        using Listener = listeners::CpdFocalSearchListener<G, V, GraphStateReal>;
+        using Super2 = ISingleListenable<Listener>;
     private:
         /**
          * @brief parameter that allows us to tweak the suboptimality bound of the algorithm
@@ -278,6 +278,7 @@ namespace pathfinding::search {
                 info("starting A*! start = ", start, "goal = ", "none");
             }
             
+            int aStarIteration = 0;
             const GraphStateReal* goal = nullptr;
             MDValue<cost_t> upperbound = cost_t::INFTY;
             upperbound.setListener(LogNumberListener<cost_t>{"upperbound", 8});
@@ -290,9 +291,9 @@ namespace pathfinding::search {
 
             GraphStateReal* startPtr = &start;
             start.setG(0);
-            this->fireEvent([startPtr](Listener& l) {l.onStartingComputingHeuristic(*startPtr); });
+            this->fireEvent([startPtr, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, *startPtr); });
             start.setH(this->heuristic.getHeuristic(start, expectedGoal));
-            this->fireEvent([startPtr](Listener& l) {l.onEndingComputingHeuristic(*startPtr); });
+            this->fireEvent([startPtr, aStarIteration](Listener& l) {l.onEndingComputingHeuristic(aStarIteration, *startPtr); });
             
 
             //update lastEarliestPerturbationSourceId
@@ -306,7 +307,6 @@ namespace pathfinding::search {
             lowerbound = start.getF();
             upperbound = start.getG() + this->heuristic.getLastPerturbatedCost();
 
-            int astarStepCounter = 0;
             while (!this->focalList->isOpenEmpty()) {
 
                 //UPDATE FOCAL LIST
@@ -319,7 +319,7 @@ namespace pathfinding::search {
 
                 GraphStateReal& current = this->focalList->peekFromFocal();
                 GraphStateReal* currentPtr = &current;
-                info("************************* NEW A* STEP #", astarStepCounter, "*****************************");
+                info("************************* NEW A* STEP #", aStarIteration, "*****************************");
                 info("PEEK FROM OPEN: ", current, " f=", current.getF(), "g=", current.getG(), "h=", current.getH(), "bestF=", lowerbound);
 
                 //check if the peeked state is actually a goal
@@ -327,7 +327,7 @@ namespace pathfinding::search {
                     info("GOAL STATE REACHED ", current);
                     goal = &current;
                     //the goal we have found might not be the optimal. we need to keep going
-                    this->fireEvent([&current](Listener& l) { l.onSolutionFound(current); });
+                    this->fireEvent([&current, aStarIteration](Listener& l) { l.onSolutionFound(aStarIteration, current); });
 
                     goto goal_found;
                 }
@@ -351,7 +351,7 @@ namespace pathfinding::search {
                 }
 
                 current.markAsExpanded();
-                this->fireEvent([currentPtr](Listener& l) {l.onNodeExpanded(*currentPtr); });
+                this->fireEvent([currentPtr, aStarIteration](Listener& l) {l.onNodeExpanded(aStarIteration, *currentPtr); });
 
                 info("computing successors of state ", current, "...");
                 for(auto pair: this->expander.getSuccessors(current, this->supplier)) {
@@ -417,9 +417,9 @@ namespace pathfinding::search {
                         GraphStateReal* successorPtr = &successor;
                         //state is not present in open list. Add to it
                         cost_t gval = current.getG() + current_to_successor_cost;
-                        this->fireEvent([successorPtr](Listener& l) {l.onStartingComputingHeuristic(*successorPtr); });
+                        this->fireEvent([successorPtr, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, *successorPtr); });
                         cost_t hval = this->heuristic.getHeuristic(successor, expectedGoal);
-                        this->fireEvent([successorPtr](Listener& l) {l.onEndingComputingHeuristic(*successorPtr); });
+                        this->fireEvent([successorPtr, aStarIteration](Listener& l) {l.onEndingComputingHeuristic(aStarIteration, *successorPtr); });
 
                         //update lastEarliestPerturbationSourceId
                         successor.updateEarlyPerturbationInfo(
@@ -431,7 +431,7 @@ namespace pathfinding::search {
                         successor.setH(hval);
                         successor.setF(this->computeF(gval, hval));
                         successor.setParent(&current);
-                        this->fireEvent([successorPtr](Listener& l) {l.onNodeGenerated(*successorPtr); });
+                        this->fireEvent([successorPtr, aStarIteration](Listener& l) {l.onNodeGenerated(aStarIteration, *successorPtr); });
 
                         //we may have a new upperbound of the solution
                         if (upperbound > gval + this->heuristic.getLastPerturbatedCost()) {
@@ -460,7 +460,7 @@ namespace pathfinding::search {
                     }
                 }
 
-                astarStepCounter += 1;
+                aStarIteration += 1;
             }
             info("found no solutions!");
             throw SolutionNotFoundException{};
