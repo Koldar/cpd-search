@@ -45,7 +45,8 @@ SCENARIO("test CpdFocalSearch with optimality bound") {
 
         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) {return PerturbatedCost{c, false}; })};
+        auto perturbatedGraphTmp = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>(cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; }));
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*perturbatedGraphTmp};
 
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{150, true});
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), PerturbatedCost{200, true});
@@ -232,7 +233,8 @@ SCENARIO("test CpdFocalSearch with suboptimality bound") {
 
         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) {return PerturbatedCost{c, false}; })};
+        auto perturbatedGraphTmp = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>(cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; }));
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*perturbatedGraphTmp};
 
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{150, true});
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), PerturbatedCost{200, true});

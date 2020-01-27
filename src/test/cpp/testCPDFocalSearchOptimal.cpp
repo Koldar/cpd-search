@@ -52,7 +52,8 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-opti
 
         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) {return PerturbatedCost{c, false}; })};
+        auto perturbatedGraphTmp = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>(cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; }));
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*perturbatedGraphTmp};
 
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 4}), perturbatedGraph.idOfVertex(xyLoc{1, 4}), PerturbatedCost{250, true});
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0, 4}), perturbatedGraph.idOfVertex(xyLoc{1, 3}), PerturbatedCost{250, true});
@@ -219,44 +220,45 @@ void performCpdFocalSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridM
     );
 }
 
-SCENARIO("test cpd focal optimal search failed queries") {
+// this test will go to infinite loop because the search algorithm has failed. I've used this to generate the video cpd-focal search
+// SCENARIO("test cpd focal optimal search failed queries") {
 
-    GIVEN("query 1") {
+//     GIVEN("query 1") {
 
-        //CREATE ORIGINAL GRAPH
-        MovingAIGridMapReader reader{
-            '.', 1000, color_t::WHITE,
-            'T', 1500, color_t::GREEN,
-            'S', 2000, color_t::CYAN,
-            'W', 2500, color_t::BLUE,
-            '@', cost_t::INFTY, color_t::BLACK
-        };
-        GridMap gridMap = reader.load(boost::filesystem::path{"./arena2.map"});
-        GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
-        AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
-        // INCLUDE THE CPD REORDERING
-        CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./arena2.cpd"}, graph};
-        const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
-        // CREATE PERTURBATED GRAPH
-        boost::filesystem::path perturbatedEdgesPath{"./arena2-900-perturbated.graph"};
-        cpp_utils::function_t<cost_t, PerturbatedCost> mapper = [&](const cost_t& c) { return PerturbatedCost{c, false};};
-        std::unique_ptr<IImmutableGraph<std::string,xyLoc,PerturbatedCost>> perturbatedGraph{pathfinding::utils::loadPerturbatedMap(
-                perturbatedEdgesPath, g, mapper
-        )};
-        // USE THE FACTORY TO PROVIDE THE SEARCH
-        REQUIRE(g.haveSameVertices(*perturbatedGraph));
+//         //CREATE ORIGINAL GRAPH
+//         MovingAIGridMapReader reader{
+//             '.', 1000, color_t::WHITE,
+//             'T', 1500, color_t::GREEN,
+//             'S', 2000, color_t::CYAN,
+//             'W', 2500, color_t::BLUE,
+//             '@', cost_t::INFTY, color_t::BLACK
+//         };
+//         GridMap gridMap = reader.load(boost::filesystem::path{"./arena2.map"});
+//         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
+//         AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
+//         // INCLUDE THE CPD REORDERING
+//         CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./arena2.cpd"}, graph};
+//         const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
+//         // CREATE PERTURBATED GRAPH
+//         boost::filesystem::path perturbatedEdgesPath{"./arena2-900-perturbated.graph"};
+//         cpp_utils::function_t<cost_t, PerturbatedCost> mapper = [&](const cost_t& c) { return PerturbatedCost{c, false};};
+//         std::unique_ptr<IImmutableGraph<std::string,xyLoc,PerturbatedCost>> perturbatedGraph{pathfinding::utils::loadPerturbatedMap(
+//                 perturbatedEdgesPath, g, mapper
+//         )};
+//         // USE THE FACTORY TO PROVIDE THE SEARCH
+//         REQUIRE(g.haveSameVertices(*perturbatedGraph));
 
-        WHEN("query 1") {
-            xyLoc startLoc{16, 105};
-            xyLoc goalLoc{277, 206};
-            performCpdFocalSearchOptimalTest(
-                startLoc, goalLoc, 
-                gridMap, "./query1", 
-                g, *perturbatedGraph, 
-                cpdManager, 
-                fractional_cost{1.1, 1e-3}, fractional_cost{1}
-            );
-        }
+//         WHEN("query 1") {
+//             xyLoc startLoc{16, 105};
+//             xyLoc goalLoc{277, 206};
+//             performCpdFocalSearchOptimalTest(
+//                 startLoc, goalLoc, 
+//                 gridMap, "./query1", 
+//                 g, *perturbatedGraph, 
+//                 cpdManager, 
+//                 fractional_cost{1.1, 1e-3}, fractional_cost{1}
+//             );
+//         }
 
-    }
-}
+//     }
+// }

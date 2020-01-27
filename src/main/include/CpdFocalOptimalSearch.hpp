@@ -50,6 +50,14 @@ namespace pathfinding::search {
         };
 
         template <typename G, typename V>
+        struct FocalListOptimalSmallerFOrderer {
+            bool operator ()(const GraphFocalState<G, V, PerturbatedCost>& a, const GraphFocalState<G, V, PerturbatedCost>& b) {
+                //f are the same. Tie breaking by selecting the one with less f
+                return a.getF() < b.getF();
+            }
+        };
+
+        template <typename G, typename V>
         struct GraphFocalOptimalStateGetCost {
             cost_t operator()(const GraphFocalState<G, V, PerturbatedCost>& state) {
                 return state.getF();
@@ -273,13 +281,18 @@ namespace pathfinding::search {
             
             int aStarIteration = 0;
             const GraphStateReal* goal = nullptr;
-            MDValue<cost_t> upperbound = cost_t::INFTY;
-            upperbound.setListener(LogNumberListener<cost_t>{"upperbound", 8});
+
+            MDValue<cost_t> upperbound{cost_t::INFTY};
+            //TODO if we add the number listener, for some weird reason there is an invalid free as soon we  call the onNumberDecreased callback method... -.-""
+            // auto upperboundListener = LogNumberListener<cost_t>{"upperbound", 8};
+            // upperbound.setListener(upperboundListener);
             /*
              * the smallest f-value in the open list. this value tends to get bigger and bigger
              */
-            MCValue<cost_t> lowerbound = cost_t{0};
-            lowerbound.setListener(LogNumberListener<cost_t>{"lowerbound", 8});
+            MCValue<cost_t> lowerbound{cost_t{0}};
+            //TODO if we add the number listener, for some weird reason there is an invalid free as soon we  call the onNumberDecreased callback method... -.-""
+            // auto lowerboundListener = LogNumberListener<cost_t>{"lowerbound", 8};
+            // lowerbound.setListener(lowerboundListener);
 
             GraphStateReal* startPtr = &start;
             start.setG(0);
@@ -311,7 +324,7 @@ namespace pathfinding::search {
 
                 GraphStateReal& current = this->focalList->peekFromFocal();
                 GraphStateReal* currentPtr = &current;
-                info("************************* NEW A* STEP #", astarStepCounter, "*****************************");
+                info("************************* NEW A* STEP #", aStarIteration, "*****************************");
                 critical("PEEK FROM FOCAL: ", current, " f=", current.getF(), "g=", current.getG(), "h=", current.getH(), "lowerbound=", lowerbound, "upperbound=", upperbound, "goal cost=", goal != nullptr ? goal->getG() : 0, "open size", this->focalList->getOpenListSize(), "focal size", this->focalList->getFocalListSize());
 
                 DO_ON_DEBUG_IF(goal != nullptr && goal->getG() < upperbound) {

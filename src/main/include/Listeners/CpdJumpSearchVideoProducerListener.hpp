@@ -8,7 +8,7 @@
 
 namespace pathfinding::search::listeners {
 
-    using cpp_utils;
+    using namespace cpp_utils;
 
     /**
      * @brief a listener that produces a video as soon as a solution is found by Cpd Jump Search Algorithm
@@ -50,7 +50,7 @@ namespace pathfinding::search::listeners {
             this->updateNodeExpanded(node);
             IMAGETYPE* image = this->drawMap();
             boost::filesystem::path p{scout("./cpdjumpsearch_videoframe_iteration_", iteration, ".jpeg")};
-            image->saveBMP(p.native());
+            image->saveJPEG(p.native());
             this->addImage(p);
             delete image;
         }

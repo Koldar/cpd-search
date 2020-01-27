@@ -43,8 +43,10 @@ namespace pathfinding::search {
             cpp_utils::vectorplus<std::pair<STATE&, cost_t>> result{};
 
             //****************** FOLLOW CPD UNTIL IT FINDS EITHER THE GOAL OR A PERTURBATION ********************
+            STATE& beforePerturbation = supplier.getState(state.getEarliestPerturbationSourceId());
+            fine("follow the cpd path from ", state, "till", beforePerturbation);
             result.add(std::pair<STATE&, cost_t>{
-                supplier.getState(state.getEarliestPerturbationSourceId()),
+                beforePerturbation,
                 state.getCostToEarliestPerturbationSourceId()
             });
             nodeid_t nodeFollowingCPDPath = state.getEarliestPerturbationSourceId();
@@ -61,6 +63,7 @@ namespace pathfinding::search {
                 });
             }
 
+            info(state, "has ", result.size(), "successors!");
             return result;
         }
         //TODO here we require that the state has getEarliestPerturbationSourceId method. It would be better to create a method for it or a new subclass of STATE where this method is added as a pure virtual method.

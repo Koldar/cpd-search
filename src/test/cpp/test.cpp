@@ -54,7 +54,7 @@ SCENARIO("test CpdHeuristic") {
         // IT'S REALLY IMPORTANT THAT WE QUERY NOT ON "graph" BUT ON "reorderedGraph"!!!!!
         // THIS because the CPD uses those indices, not the ones from "graph"!!!
         std::function<PerturbatedCost(const cost_t&)> costFunction = [&](const cost_t& c) { return PerturbatedCost{c, false};};
-        std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>> perturbatedGraph = reorderedGraph.mapEdges(costFunction);
+        std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>> perturbatedGraph = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>(reorderedGraph.mapEdges(costFunction));
         CpdHeuristic<GraphState<std::string, xyLoc>, std::string, xyLoc> h{
             cpdManager, 
             *perturbatedGraph
@@ -330,7 +330,8 @@ SCENARIO("test CpdSearch with optimality bound") {
 
         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) {return PerturbatedCost{c, false}; })};
+        auto perturbatedGraphTmp = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>(cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; }));
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*perturbatedGraphTmp};
 
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{150, true});
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), PerturbatedCost{200, true});
@@ -519,7 +520,8 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
 
         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; })};
+        auto perturbatedGraphTmp = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>(cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; }));
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*perturbatedGraphTmp};
 
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{500, true});
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 1}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{500, true});
@@ -698,7 +700,8 @@ SCENARIO("test CPdFocalHeuristic") {
         const IImmutableGraph<std::string, xyLoc, cost_t>& reorderedGraph = cpdManager.getReorderedGraph();
         // IT'S REALLY IMPORTANT THAT WE QUERY NOT ON "graph" BUT ON "reorderedGraph"!!!!!
         // THIS because the CPD uses those indices, not the ones from "graph"!!!
-        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) {return PerturbatedCost{c, false}; })};
+        auto perturbatedGraphTmp = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>(cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; }));
+        AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*perturbatedGraphTmp};
 
         perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{0,3}), perturbatedGraph.idOfVertex(xyLoc{0,4}), PerturbatedCost{200, true});
 

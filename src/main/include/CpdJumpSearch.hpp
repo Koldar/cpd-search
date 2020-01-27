@@ -198,7 +198,8 @@ namespace pathfinding::search {
             int aStarIteration = 0;
             const GraphStateReal* goal = nullptr;
             cost_t upperbound = cost_t::INFTY;
-            const GraphStateReal* earlyTerminationState = nullptr;
+            //we might be able to early terminate from start. In this case the state where we start early terminating is the start itself
+            const GraphStateReal* earlyTerminationState = &start;
 
             start.setG(0);
             this->fireEvent([&start, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, start); });
@@ -214,18 +215,20 @@ namespace pathfinding::search {
             while (!this->openList->isEmpty()) {
                 info("*************** A* step #", aStarIteration, "******************");
                 GraphStateReal& current = this->openList->peek();
-                info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH(), " pointer=", &current, "parent pointer=", current.getParent());
+                //current.getF() is also a lowerbound since the heuristic is admissible
+                lowerbound = current.getF();
+                info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH(), " pointer=", &current, "parent pointer=", current.getParent(), "lowerbound=", lowerbound, "upperbound=", upperbound, "eps_numerator=", this->epsilon.getNumerator(), "eps_denominator=", this->epsilon.getDenominator());
 
                 //check if the peeked state is actually a goal
                 if (this->goalChecker.isGoal(current, expectedGoal)) {
                     info("state ", current, "is a goal!");
                     goal = &current;
+
+                    this->fireEvent([&, goal](Listener& l) { l.onSolutionFound(aStarIteration, *goal);});
                     goto goal_found;
                 }
 
                 this->openList->pop();
-                //current.getF() is also a lowerbound since the heuristic is admissible
-                lowerbound = current.getF();
                 
 
                 /*
@@ -233,6 +236,7 @@ namespace pathfinding::search {
                 * which we derive
                 * eps * lowerbound >= upperbound
                 */
+               info("(", this->epsilon.getNumerator(), "*", current.getF(), ") >= (", upperbound, "*", this->epsilon.getDenominator(), ")");
                 if ((this->epsilon.getNumerator() * current.getF()) >= (upperbound * this->epsilon.getDenominator())) {
                     //return the solution by concatenating the current path from start to current and the cpdpath from current to goal
                     //(considering the perturbations!)
@@ -240,6 +244,7 @@ namespace pathfinding::search {
                     info("early terminating from ", *earlyTerminationState, "up until ", *expectedGoal);
                     goal = this->earlyTerminate(*earlyTerminationState, expectedGoal);
                     this->fireEvent([&, earlyTerminationState, goal, aStarIteration](Listener& l) {l.onEarlyTerminationActivated(aStarIteration, *earlyTerminationState, *goal); });
+                    this->fireEvent([&, goal](Listener& l) { l.onSolutionFound(aStarIteration, *goal);});
                     goto goal_found;
                 }
 
@@ -257,9 +262,12 @@ namespace pathfinding::search {
                         continue;
                     }
 
+                    debug("checking successor", successor, "w.r.t upperbound", upperbound);
                     if (successor.getG() > upperbound) {
                         //we put tjhis successor in closed list, since it cannot be the solution, since its cost is greater than the current solution
-
+                        successor.setExpanded(true);
+                        info(successor, "put in closed list since its g is far superior than the upperbound", upperbound);
+                        continue;
                     }
 
                     // the search is suboptimal. So a state in the closed list can be reopened
@@ -289,6 +297,7 @@ namespace pathfinding::search {
                             continue;
                         }
                         info("child", successor, "of state ", current, "present in closed list and has a lower g. update its parent and put it in open again!");
+                        successor.setExpanded(false);
 
                         //update successor information
                         successor.setG(gval);
