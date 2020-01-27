@@ -7,6 +7,12 @@
 
 namespace pathfinding::search {
 
+    /**
+     * @brief a state expander that not only generate up to 8 successors of a node depending on the vertex successors of an underlying graph, but generates a state by following the cpd-path of the cpd up until it encounters its first perturbation
+     * 
+     * @tparam G 
+     * @tparam V 
+     */
     template <typename G, typename V>
     class CpdFocalExpander: public IStateExpander<GraphFocalState<G, V, PerturbatedCost>, nodeid_t, generation_enum_t> {
         typedef CpdFocalExpander<G, V> CpdFocalExpanderInstance;
