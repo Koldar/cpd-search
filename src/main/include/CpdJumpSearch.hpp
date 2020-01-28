@@ -17,6 +17,7 @@
 #include "CpdExpander.hpp"
 #include "CpdJumpSearchListener.hpp"
 #include "PerturbatedCost.hpp"
+#include "CpdFocalHeuristic.hpp"
 
 
 namespace pathfinding::search {
@@ -92,7 +93,7 @@ namespace pathfinding::search {
          * @param epsilon suboptimality bound to test
          * @param openListCapacity 
          */
-        CpdJumpSearch(CpdHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, CpdExpander<G, V, GraphStateReal>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, fractional_cost epsilon, unsigned int openListCapacity = 1024) : Super2{},
+        CpdJumpSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, CpdExpander<G, V, GraphStateReal>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, fractional_cost epsilon, unsigned int openListCapacity = 1024) : Super2{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
             openList{nullptr} {
@@ -146,7 +147,7 @@ namespace pathfinding::search {
          * 
          */
         const CpdManager<G, V>& cpdManager;
-        CpdHeuristic<GraphStateReal, G, V>& heuristic;
+        CpdFocalHeuristic<GraphStateReal, G, V>& heuristic;
         IGoalChecker<GraphStateReal>& goalChecker;
         CpdExpander<G, V, GraphStateReal>& expander;
         IStateSupplier<GraphStateReal, nodeid_t>& supplier;
@@ -207,6 +208,12 @@ namespace pathfinding::search {
             this->fireEvent([&start, aStarIteration](Listener& l) {l.onEndingComputingHeuristic(aStarIteration, start); });
             start.setF(this->computeF(start.getG(), start.getH()));
 
+            //update lastEarliestPerturbationSourceId
+            start.updateEarlyPerturbationInfo(
+                this->heuristic.getLastEarliestNodeBeforePerturbation(),
+                this->heuristic.getLastEarliestPerturbationSourceIdCost()
+            );
+
             //update lower and upper bound from f of solution
             cost_t lowerbound = start.getH();
             upperbound = this->heuristic.getCPDPathPerturbatedWeights(start.getPosition());
@@ -262,6 +269,12 @@ namespace pathfinding::search {
                         continue;
                     }
 
+                    //update lastEarliestPerturbationSourceId
+                    start.updateEarlyPerturbationInfo(
+                        this->heuristic.getLastEarliestNodeBeforePerturbation(),
+                        this->heuristic.getLastEarliestPerturbationSourceIdCost()
+                    );
+
                     debug("checking successor", successor, "w.r.t upperbound", upperbound);
                     if (successor.getG() > upperbound) {
                         //we put tjhis successor in closed list, since it cannot be the solution, since its cost is greater than the current solution
@@ -271,12 +284,11 @@ namespace pathfinding::search {
                     }
 
                     // the search is suboptimal. So a state in the closed list can be reopened
-
                     if (this->openList->contains(successor)) {
                         //state inside the open list. Check if we need to update the path
                         cost_t gval = current.getG() + current_to_successor_cost;
                         if (gval >= successor.getG()) {
-                            info(successor, " is in open but the new path for reaching the state is not better than the current one. Ignoring");
+                            cinfo(successor, " is in open but the new path for reaching the state is not better than the current one. Ignoring");
                             continue;
                         }
 
@@ -312,6 +324,12 @@ namespace pathfinding::search {
                         this->fireEvent([&successor, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, successor); });
                         cost_t hval = this->heuristic.getHeuristic(successor, expectedGoal);
                         this->fireEvent([&successor, aStarIteration](Listener& l) {l.onEndingComputingHeuristic(aStarIteration, successor); });
+
+                        //update lastEarliestPerturbationSourceId
+                        successor.updateEarlyPerturbationInfo(
+                            this->heuristic.getLastEarliestNodeBeforePerturbation(),
+                            this->heuristic.getLastEarliestPerturbationSourceIdCost()
+                        );
                         
                         successor.setG(gval);
                         successor.setH(hval);
@@ -413,7 +431,7 @@ namespace pathfinding::search {
              * @note this needs to be the last field declared here, since its dependent on other fields.
              * @see https://wiki.sei.cmu.edu/confluence/display/cplusplus/OOP53-CPP.+Write+constructor+member+initializers+in+the+canonical+order
              */
-            CpdHeuristic<GraphStateReal, G, V> heuristic;
+            CpdFocalHeuristic<GraphStateReal, G, V> heuristic;
             /**
              * @brief place where CPD timed search algorithm is located
              * 

@@ -48,11 +48,8 @@ namespace pathfinding::search::listeners {
 
         virtual void onNodeExpanded(int iteration, const STATE& node) {
             this->updateNodeExpanded(node);
-            IMAGETYPE* image = this->drawMap();
             boost::filesystem::path p{scout("./cpdjumpsearch_videoframe_iteration_", iteration, ".jpeg")};
-            image->saveJPEG(p.native());
             this->addImage(p);
-            delete image;
         }
         
         virtual void onNodeGenerated(int iteration, const STATE& node) {

@@ -450,16 +450,46 @@ void performCpdJumpSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridMa
 }
 
 
-SCENARIO("test cpd focal optimal search failed queries") {
+SCENARIO("test cpd focal optimal search failed queries", "[cpd-jump-search-queries]") {
 
     //CREATE ORIGINAL GRAPH
-        MovingAIGridMapReader reader{
-            '.', 1000, color_t::WHITE,
-            'T', 1500, color_t::GREEN,
-            'S', 2000, color_t::CYAN,
-            'W', 2500, color_t::BLUE,
-            '@', cost_t::INFTY, color_t::BLACK
-        };
+    MovingAIGridMapReader reader{
+        '.', 1000, color_t::WHITE,
+        'T', 1500, color_t::GREEN,
+        'S', 2000, color_t::CYAN,
+        'W', 2500, color_t::BLUE,
+        '@', cost_t::INFTY, color_t::BLACK
+    };
+
+    // GIVEN("query 1") {
+
+    //     GridMap gridMap = reader.load(boost::filesystem::path{"./arena2.map"});
+    //     GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
+    //     AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
+    //     // INCLUDE THE CPD REORDERING
+    //     CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./arena2.cpd"}, graph};
+    //     const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
+    //     // CREATE PERTURBATED GRAPH
+    //     boost::filesystem::path perturbatedEdgesPath{"./arena2-900-perturbated.graph"};
+    //     cpp_utils::function_t<cost_t, PerturbatedCost> mapper = [&](const cost_t& c) { return PerturbatedCost{c, false};};
+    //     std::unique_ptr<IImmutableGraph<std::string,xyLoc,PerturbatedCost>> perturbatedGraph{pathfinding::utils::loadPerturbatedMap(
+    //             perturbatedEdgesPath, g, mapper
+    //     )};
+    //     // USE THE FACTORY TO PROVIDE THE SEARCH
+    //     REQUIRE(g.haveSameVertices(*perturbatedGraph));
+
+    //     WHEN("query 1 with epsilon set to 2") {
+    //         xyLoc startLoc{16, 105};
+    //         xyLoc goalLoc{277, 206};
+    //         performCpdJumpSearchOptimalTest(
+    //             startLoc, goalLoc, 
+    //             gridMap, "./query1", 
+    //             g, *perturbatedGraph, 
+    //             cpdManager, 
+    //             fractional_cost{2}
+    //         );
+    //     }
+    // }
 
     GIVEN("query 1") {
 
@@ -478,37 +508,7 @@ SCENARIO("test cpd focal optimal search failed queries") {
         // USE THE FACTORY TO PROVIDE THE SEARCH
         REQUIRE(g.haveSameVertices(*perturbatedGraph));
 
-        WHEN("query 1") {
-            xyLoc startLoc{16, 105};
-            xyLoc goalLoc{277, 206};
-            performCpdJumpSearchOptimalTest(
-                startLoc, goalLoc, 
-                gridMap, "./query1", 
-                g, *perturbatedGraph, 
-                cpdManager, 
-                fractional_cost{2}
-            );
-        }
-    }
-
-    GIVEN("query 2") {
-
-        GridMap gridMap = reader.load(boost::filesystem::path{"./arena2.map"});
-        GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
-        AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
-        // INCLUDE THE CPD REORDERING
-        CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./arena2.cpd"}, graph};
-        const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
-        // CREATE PERTURBATED GRAPH
-        boost::filesystem::path perturbatedEdgesPath{"./arena2-900-perturbated.graph"};
-        cpp_utils::function_t<cost_t, PerturbatedCost> mapper = [&](const cost_t& c) { return PerturbatedCost{c, false};};
-        std::unique_ptr<IImmutableGraph<std::string,xyLoc,PerturbatedCost>> perturbatedGraph{pathfinding::utils::loadPerturbatedMap(
-                perturbatedEdgesPath, g, mapper
-        )};
-        // USE THE FACTORY TO PROVIDE THE SEARCH
-        REQUIRE(g.haveSameVertices(*perturbatedGraph));
-
-        WHEN("query 1") {
+        WHEN("query 1 with epsilon set to 1.1") {
             xyLoc startLoc{16, 105};
             xyLoc goalLoc{277, 206};
             performCpdJumpSearchOptimalTest(

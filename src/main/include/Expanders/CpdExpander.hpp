@@ -44,15 +44,15 @@ namespace pathfinding::search {
 
             //****************** FOLLOW CPD UNTIL IT FINDS EITHER THE GOAL OR A PERTURBATION ********************
             STATE& beforePerturbation = supplier.getState(state.getEarliestPerturbationSourceId());
-            fine("follow the cpd path from ", state, "till", beforePerturbation);
+            critical("follow the cpd path from ", state, "till", beforePerturbation, "cost to reach it is", state.getCostToEarliestPerturbationSourceId());
             result.add(std::pair<STATE&, cost_t>{
                 beforePerturbation,
                 state.getCostToEarliestPerturbationSourceId()
             });
-            nodeid_t nodeFollowingCPDPath = state.getEarliestPerturbationSourceId();
+            nodeid_t nodeFollowingCPDPath = beforePerturbation.getId();
             //****************** MOVING *********************
             for (auto outEdge : this->graph.getOutEdges(state.getPosition())) {
-                fine("an outedge ", outEdge, " of ", this->graph.getVertex(state.getPosition()), "(", &state, ") goes to", this->graph.getVertex(outEdge.getSinkId()), "edge payload of", outEdge.getPayload());
+                critical("an outedge ", outEdge, " of ", this->graph.getVertex(state.getPosition()), "(", &state, ") goes to", this->graph.getVertex(outEdge.getSinkId()), "edge payload of", outEdge.getPayload());
                 if (outEdge.getSinkId() == nodeFollowingCPDPath) {
                     //we have already generated this state. Ignore it
                     continue;
@@ -63,7 +63,7 @@ namespace pathfinding::search {
                 });
             }
 
-            info(state, "has ", result.size(), "successors!");
+            critical(state, "has ", result.size(), "successors!");
             return result;
         }
         //TODO here we require that the state has getEarliestPerturbationSourceId method. It would be better to create a method for it or a new subclass of STATE where this method is added as a pure virtual method.

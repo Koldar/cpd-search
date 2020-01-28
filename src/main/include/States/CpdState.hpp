@@ -19,7 +19,7 @@ namespace pathfinding::search {
     public:
         using This = CpdState<G, V, E>;
         using Super = GraphState<G, V, E>;
-    private:
+    protected:
         /**
          * @brief if we follow the CPDPath from this search node till the goal, this is the source of the first perturbated edge we encounter
          * 
@@ -30,9 +30,14 @@ namespace pathfinding::search {
          * 
          */
         cost_t lastEarliestPerturbationSourceIdCost;
+        /**
+         * @brief actual cost till the goal
+         * 
+         */
+        cost_t perturbatedPathCost;
     public:
         CpdState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location): Super{id, g, location}, 
-            lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY} {
+            lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY}, perturbatedPathCost{cost_t::INFTY} {
 
         }
         virtual ~CpdState() {
@@ -41,7 +46,8 @@ namespace pathfinding::search {
         CpdState(const This& other) = delete;
         CpdState(This&& other) : Super{::std::move(other)}, 
             lastEarliestPerturbationSourceId{other.lastEarliestPerturbationSourceId}, 
-            lastEarliestPerturbationSourceIdCost{other.lastEarliestPerturbationSourceIdCost} {
+            lastEarliestPerturbationSourceIdCost{other.lastEarliestPerturbationSourceIdCost},
+            perturbatedPathCost{other.perturbatedPathCost} {
 
         }
 
@@ -50,6 +56,7 @@ namespace pathfinding::search {
             Super::operator =(::std::move(other));
             this->lastEarliestPerturbationSourceId = other.lastEarliestPerturbationSourceId;
             this->lastEarliestPerturbationSourceIdCost = other.lastEarliestPerturbationSourceIdCost;
+            this->perturbatedPathCost = other.perturbatedPathCost;
 
             return *this;
         }
@@ -68,6 +75,9 @@ namespace pathfinding::search {
             this->lastEarliestPerturbationSourceId = sourceId;
             this->lastEarliestPerturbationSourceIdCost = costToReach;
         }
+        void updatePerturbatedPathCostToGoal(cost_t perturbatedPathCost) {
+            this->perturbatedPathCost = perturbatedPathCost;
+        }
         nodeid_t getEarliestPerturbationSourceId() const {
             return this->lastEarliestPerturbationSourceId;
         }
@@ -75,6 +85,19 @@ namespace pathfinding::search {
             return this->lastEarliestPerturbationSourceIdCost;
         }
     public:
+        friend bool operator <(const This& a, const This& b) {
+            //used in open list
+            if (a.getF() < b.getF()) {
+                return true;
+            } else if (a.getF() == b.getF()) {
+                //tie breaking. Choose the state with maximum g
+                //return a.getG() > b.getG();
+                //tie breaking. Choose the state with smaller cpd perturbated cost
+                return a.perturbatedPathCost < b.perturbatedPathCost;
+            } else {
+                return false;
+            }
+        }
         friend bool operator ==(const This& a, const This& b) {
             return a.id == b.id && a.position == b.position;
         }
