@@ -288,7 +288,7 @@ namespace pathfinding::search {
                         //state inside the open list. Check if we need to update the path
                         cost_t gval = current.getG() + current_to_successor_cost;
                         if (gval >= successor.getG()) {
-                            cinfo(successor, " is in open but the new path for reaching the state is not better than the current one. Ignoring");
+                            info(successor, " is in open but the new path for reaching the state is not better than the current one. Ignoring");
                             continue;
                         }
 

@@ -16,7 +16,7 @@ namespace pathfinding::search {
     template <typename G, typename V, typename E = PerturbatedCost>
     class DiscountedCpdStateSupplier: public AbstractSimpleWeightedDirectedGraphStateSupplier<DiscountedCpdState<G, V, E>, G, V, E> {
         using This = DiscountedCpdStateSupplier<G, V, E>;
-        using State = CpdState<G, V, E>;
+        using State = DiscountedCpdState<G, V, E>;
         using Super = AbstractSimpleWeightedDirectedGraphStateSupplier<State, G, V, E>;
     public:
         /**

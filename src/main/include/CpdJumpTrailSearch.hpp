@@ -24,7 +24,6 @@ namespace pathfinding::search {
 
     using namespace cpp_utils;
     using namespace compressed_path_database;
-    using namespace pathfinding::search;
 
     /**
      * @brief CPD Jump Trail Search
@@ -35,6 +34,8 @@ namespace pathfinding::search {
      * The main idea is that in this way we avoid expanding again all the states we have been through via the cpd path and we can immediately expand the most promising one (maybe it was one in the middle of the track).
      * In this way the search is still best first, so as soon as we find the goal, we know it's the optimal solution.
      * CPD-Search expands all the triangle from the start till to goal if a perturbation is blocking the path. We still expand a triangle, but (hopefully) a smaller one and we can also jump in an optimal way towards the perturbation.
+     * If we found a new path that allows us to reach a state in the open list quicker, not only we need to revise the g value, but the h value as well since the discount factor may have changed.
+     * When generating a new state, we need to make sure to update the f value taking into account the discount factor.
      * 
      * 
      * @image html cpdjumptrailsearch_01.jpg "cpd jump trail search exapnsion states" 
@@ -71,7 +72,7 @@ namespace pathfinding::search {
      * @tparam V type of the payload of each vertex in map graph
      */
     template <typename G, typename V>
-    class CpdJumpTrailSearch: public IMemorable, public ISearchAlgorithm<CpdState<G, V, PerturbatedCost>, const DiscountedCpdState<G, V, PerturbatedCost>*, const DiscountedCpdState<G, V, PerturbatedCost>&>, public ISingleListenable<listeners::CpdJumpTrailSearchListener<G, V, DiscountedCpdState<G, V, PerturbatedCost>>> {
+    class CpdJumpTrailSearch: public IMemorable, public ISearchAlgorithm<DiscountedCpdState<G, V, PerturbatedCost>, const DiscountedCpdState<G, V, PerturbatedCost>*, const DiscountedCpdState<G, V, PerturbatedCost>&>, public ISingleListenable<listeners::CpdJumpTrailSearchListener<G, V, DiscountedCpdState<G, V, PerturbatedCost>>> {
         using GraphStateReal = DiscountedCpdState<G, V, PerturbatedCost>;
         using This =  CpdJumpTrailSearch<G, V>;
         using Listener = listeners::CpdJumpTrailSearchListener<G, V, GraphStateReal>;
@@ -89,10 +90,9 @@ namespace pathfinding::search {
          * @param epsilon suboptimality bound to test
          * @param openListCapacity 
          */
-        CpdJumpTrailSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t>& supplier, CpdTrailExpander<G, V, GraphStateReal>& expander, DiscountedCpdStateSupplier<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, fractional_cost epsilon, unsigned int openListCapacity = 1024) : Super2{},
+        CpdJumpTrailSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, DiscountedCpdStateSupplier<G, V>& supplier, CpdTrailExpander<G, V, GraphStateReal>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, fractional_cost epsilon, unsigned int openListCapacity = 1024) : Super2{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
-            minDiscount{minDiscount}, maxDiscount{maxDiscount}, discountDecay{discountDecay},
             openList{nullptr} {
                 debug("CpdJumpTrailSearch constructor started!");
                 if (!heuristic.isConsistent()) {
@@ -147,7 +147,7 @@ namespace pathfinding::search {
         CpdFocalHeuristic<GraphStateReal, G, V>& heuristic;
         IGoalChecker<GraphStateReal>& goalChecker;
         CpdTrailExpander<G, V, GraphStateReal>& expander;
-        DiscountedCpdStateSupplier<GraphStateReal, nodeid_t>& supplier;
+        DiscountedCpdStateSupplier<G, V>& supplier;
         IStatePruner<GraphStateReal>& pruner;
         StaticPriorityQueue<GraphStateReal>* openList;
     public:
@@ -167,8 +167,9 @@ namespace pathfinding::search {
         virtual void tearDownSearch() {
         }
     protected:
-        virtual cost_t computeF(cost_t g, cost_t h) const {
-            return g + h;
+        virtual cost_t computeF(cost_t g, cost_t h, double discountFactor) const {
+            // we don't want to overestimate the value. So if we need to round the discount, we prefer rounding it down.
+            return g + floor(discountFactor * static_cast<double>(h)); 
         }
     protected:
         virtual std::unique_ptr<ISolutionPath<const GraphStateReal*, const GraphStateReal&>> buildSolutionFromGoalFetched(const GraphStateReal& start, const GraphStateReal& actualGoal, const GraphStateReal* goal) {
@@ -185,11 +186,11 @@ namespace pathfinding::search {
             return actualGoal.getCost();
         }
         virtual const GraphStateReal& performSearch(GraphStateReal& start, const GraphStateReal* expectedGoal) {
-            info("*********************** NEW SEARCH *******************");
+            c_info("*********************** NEW SEARCH *******************");
             if (expectedGoal != nullptr) {
-                info("starting A*! start = ", start, "goal = ", *expectedGoal);
+                c_info("starting A*! start = ", start, "goal = ", *expectedGoal);
             } else {
-                info("starting A*! start = ", start, "goal = ", "none");
+                c_info("starting A*! start = ", start, "goal = ", "none");
             }
             
 
@@ -203,7 +204,8 @@ namespace pathfinding::search {
             this->fireEvent([&start, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, start); });
             start.setH(this->heuristic.getHeuristic(start, expectedGoal));
             this->fireEvent([&start, aStarIteration](Listener& l) {l.onEndingComputingHeuristic(aStarIteration, start); });
-            start.setF(this->computeF(start.getG(), start.getH()));
+            //the start has discount factor of 1
+            start.setF(this->computeF(start.getG(), start.getH(), start.getDiscount()));
 
             //update lastEarliestPerturbationSourceId
             start.updateEarlyPerturbationInfo(
@@ -218,15 +220,15 @@ namespace pathfinding::search {
 
             this->openList->push(start);
             while (!this->openList->isEmpty()) {
-                info("*************** A* step #", aStarIteration, "******************");
+                c_info("*************** A* step #", aStarIteration, "******************");
                 GraphStateReal& current = this->openList->peek();
                 //current.getF() is also a lowerbound since the heuristic is admissible
                 lowerbound = current.getF();
-                info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH(), " pointer=", &current, "parent pointer=", current.getParent(), "lowerbound=", lowerbound, "upperbound=", upperbound, "eps_numerator=", this->epsilon.getNumerator(), "eps_denominator=", this->epsilon.getDenominator());
+                c_info("state ", current, "popped from open list f=", current.getF(), "g=", current.getG(), "h=", current.getH(), " pointer=", &current, "parent pointer=", current.getParent(), "lowerbound=", lowerbound, "upperbound=", upperbound, "eps_numerator=", this->epsilon.getNumerator(), "eps_denominator=", this->epsilon.getDenominator());
 
                 //check if the peeked state is actually a goal
                 if (this->goalChecker.isGoal(current, expectedGoal)) {
-                    info("state ", current, "is a goal!");
+                    c_info("state ", current, "is a goal!");
                     goal = &current;
 
                     this->fireEvent([&, goal](Listener& l) { l.onSolutionFound(aStarIteration, *goal);});
@@ -241,12 +243,12 @@ namespace pathfinding::search {
                 * which we derive
                 * eps * lowerbound >= upperbound
                 */
-               info("(", this->epsilon.getNumerator(), "*", current.getF(), ") >= (", upperbound, "*", this->epsilon.getDenominator(), ")");
+               c_info("(", this->epsilon.getNumerator(), "*", current.getF(), ") >= (", upperbound, "*", this->epsilon.getDenominator(), ")");
                 if ((this->epsilon.getNumerator() * current.getF()) >= (upperbound * this->epsilon.getDenominator())) {
                     //return the solution by concatenating the current path from start to current and the cpdpath from current to goal
                     //(considering the perturbations!)
-                    info("epsilon * lowerbound >= upperbound! ", epsilon, "*", current.getF(), ">=", upperbound);
-                    info("early terminating from ", *earlyTerminationState, "up until ", *expectedGoal);
+                    c_info("epsilon * lowerbound >= upperbound! ", epsilon, "*", current.getF(), ">=", upperbound);
+                    c_info("early terminating from ", *earlyTerminationState, "up until ", *expectedGoal);
                     goal = this->earlyTerminate(*earlyTerminationState, expectedGoal);
                     this->fireEvent([&, earlyTerminationState, goal, aStarIteration](Listener& l) {l.onEarlyTerminationActivated(aStarIteration, *earlyTerminationState, *goal); });
                     this->fireEvent([&, goal](Listener& l) { l.onSolutionFound(aStarIteration, *goal);});
@@ -256,13 +258,14 @@ namespace pathfinding::search {
                 current.markAsExpanded();
                 this->fireEvent([&current, aStarIteration](Listener& l) {l.onNodeExpanded(aStarIteration, current); });
 
-                info("computing successors of state ", current, "...");
+                c_info("computing successors of state ", current, "...");
+                //since it is the expander that generate the successors and knows which state is generated by following the cpd path and which isn't, it has the job of updating the discount factor whenever it is possible
                 for(auto pair: this->expander.getSuccessors(current, this->supplier)) {
                     GraphStateReal& successor = pair.first;
                     cost_t current_to_successor_cost = pair.second;
 
                     if (this->pruner.shouldPrune(successor)) {
-                        info("child", successor, "of state ", current, "should be pruned!");
+                        c_info("child", successor, "of state ", current, "should be pruned!");
                         //skip neighbours already expanded
                         continue;
                     }
@@ -277,15 +280,15 @@ namespace pathfinding::search {
                         //state inside the open list. Check if we need to update the path
                         cost_t gval = current.getG() + current_to_successor_cost;
                         if (gval >= successor.getG()) {
-                            info(successor, " is in open but the new path for reaching the state is not better than the current one. Ignoring");
+                            c_info(successor, " is in open but the new path for reaching the state is not better than the current one. Ignoring");
                             continue;
                         }
 
-                        info("child", successor, "of state ", current, "present in open list and has a lower g. update its parent!");
+                        c_info("child", successor, "of state ", current, "present in open list and has a lower g. update its parent!");
 
                         //update successor information
                         successor.setG(gval);
-                        successor.setF(this->computeF(gval, successor.getH()));
+                        successor.setF(this->computeF(gval, successor.getH(), successor.getDiscount()));
                         const GraphStateReal* oldParent = successor.getParent();
                         successor.setParent(&current);
 
@@ -306,17 +309,17 @@ namespace pathfinding::search {
                         
                         successor.setG(gval);
                         successor.setH(hval);
-                        successor.setF(this->computeF(gval, hval));
+                        successor.setF(this->computeF(gval, hval, successor.getDiscount()));
                         successor.setParent(&current);
                         this->fireEvent([&successor, aStarIteration](Listener& l) {l.onNodeGenerated(aStarIteration, successor); });
 
                         //we may have a new upperbound of the solution
                         if (upperbound > gval + this->heuristic.getLastPerturbatedCost()) {
-                            info("updating upperbound. upperbound: from", upperbound, "to", gval + this->heuristic.getLastPerturbatedCost());
+                            c_info("updating upperbound. upperbound: from", upperbound, "to", gval + this->heuristic.getLastPerturbatedCost());
                             if (earlyTerminationState == nullptr) {
-                                info("updating incumbent. incumbent: from null to", successor);
+                                c_info("updating incumbent. incumbent: from null to", successor);
                             } else {
-                                info("updating incumbent. incumbent: from", *earlyTerminationState, "to", successor);
+                                c_info("updating incumbent. incumbent: from", *earlyTerminationState, "to", successor);
                             }
                             
                             auto newupperbound = gval + this->heuristic.getLastPerturbatedCost();
@@ -326,7 +329,7 @@ namespace pathfinding::search {
                             earlyTerminationState = &successor;
                         }
 
-                        info("child", successor, "of state ", current, "not present in open list. Add it f=", successor.getF(), "g=", successor.getG(), "h=", successor.getH());
+                        c_info("child", successor, "of state ", current, "not present in open list. Add it f=", successor.getF(), "g=", successor.getG(), "h=", successor.getH());
                         this->openList->push(successor);
                     }
                 }
@@ -417,7 +420,7 @@ namespace pathfinding::search {
                 const CpdManager<G, V>& cpdManager,
                 const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph,
                 fractional_cost epsilon,
-                fractional_cost minDiscount, fractional_cost maxDiscount, fractional_cost discountDecay
+                double minDiscount, double maxDiscount, double discountDecay
                 ): 
                 goalChecker{}, 
                 heuristic{cpdManager, perturbatedGraph},
@@ -462,7 +465,7 @@ namespace pathfinding::search {
          * @return cpd search algorithm
          */
         template <typename G, typename V>
-        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, fractional_cost epsilon, fractional_cost minDiscount, fractional_cost maxDiscount, fractional_cost discountDecay) {
+        output_t<G,V>* get(const CpdManager<G,V>& cpdManager, const IImmutableGraph<G, V, PerturbatedCost>& perturbatedGraph, fractional_cost epsilon, double minDiscount, double maxDiscount, double discountDecay) {
             debug("generating output...");
             return new output_t<G, V>{
                 cpdManager,

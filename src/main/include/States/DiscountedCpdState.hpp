@@ -30,16 +30,17 @@ namespace pathfinding::search {
     template <typename G, typename V, typename E>
     class DiscountedCpdState: public CpdState<G, V, E> {
     public:
-        using This = DiscoutnedCpdState<G, V, E>;
+        using This = DiscountedCpdState<G, V, E>;
         using Super = CpdState<G, V, E>;
     protected:
         /**
          * @brief the discount factor used to discount the heuristic.
          * 
+         * The value belongs in [0, 1]
          */
-        fractional_cost discount;
+        double discount;
     public:
-        DiscountedCpdState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location): Super{id, g, location}, discount{cost_t{1}} {
+        DiscountedCpdState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location): Super{id, g, location}, discount{1} {
 
         }
         virtual ~DiscountedCpdState() {
@@ -69,10 +70,10 @@ namespace pathfinding::search {
             this->parent = static_cast<This*>(parent);
         }
     public:
-        void setDiscount(fractional_cost c) {
-            this->discount;
+        void setDiscount(double c) {
+            this->discount = c;
         }
-        cost_t getDiscount() const {
+        double getDiscount() const {
             return this->discount;
         }
     public:
@@ -105,6 +106,8 @@ namespace pathfinding::search {
                 << state.getF()
                 << " g: "
                 << state.getG()
+                << " discount: "
+                << state.getDiscount()
                 << " }";
             return out;
         }
