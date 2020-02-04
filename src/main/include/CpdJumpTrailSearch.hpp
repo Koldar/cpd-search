@@ -174,15 +174,89 @@ namespace pathfinding::search {
             return g + floor(discountFactor * static_cast<double>(h)); 
         }
     protected:
+        /**
+         * @brief generate the states between from and to by following the cpd path
+         * 
+         * In the return value neither @c from and @¢ to are present, only the interstates.
+         * 
+         * This means that if `from` is adjacent to `to` we will return.
+         * 
+         * @pre
+         *  @li from != to
+         * 
+         * The vector return starts from the state near `from` and go up until it reaches the previous state of `to`
+         * 
+         * @param from the search node where we start
+         * @param to the search node where we need to go
+         * @return vectorplus<const State*> list of possibly new state generated going from @c from to @c to
+         */
+        virtual vectorplus<const State*> connectStates(const State* from, const State* to) const {
+            vectorplus<const State*> result{};
+            const State* tmp = from;
+            //result contains only the nodes between from and to, from and to excluded
+            if (from->getPosition() == to->getPosition()) {
+                return result;
+            }
+            while(true) {
+                moveid_t nextMove;
+                nodeid_t nextNode;
+                cost_t moveCost;
+                if (!this->cpdManager.getFirstMove(tmp->getPosition(), to->getPosition(), nextMove, nextNode, moveCost)) {
+                    throw cpp_utils::exceptions::ImpossibleException{};
+                }
+                State* tmp2 = &this->supplier.getState(nextNode, cpd_search_generated_e::FROM_SOLUTION);
+                tmp2->setParent(const_cast<State*>(tmp));
+                if (tmp2->getPosition() == to->getPosition()) {
+                    goto exit;
+                }
+                
+                result.add(tmp2);
+                tmp = tmp2;
+            }
+
+            exit:;
+            return result;
+        }
         virtual std::unique_ptr<ISolutionPath<State>> buildSolutionFromGoalFetched(const State& start, const State& actualGoal, const State* goal) {
             auto result = new StateSolutionPath<State>{};
-            const State* tmp = &actualGoal;
-            while (tmp != nullptr) {
-                debug("adding ", tmp, "to solution");
-                result->addHead(*tmp);
-                tmp = tmp->getParent();
+
+            if (actualGoal == start) {
+                result->add(start);
+            } else {
+                const State* cpdPathEnd = &actualGoal;
+                const State* cpdPathStart = actualGoal.getParent();
+                
+                while (cpdPathStart != nullptr) {
+                    info("need to connect path from", *cpdPathStart, " to ", *cpdPathEnd);
+                    //we need to rebuild the path, since the search has jumped from a loation to another one via the CPD.
+                    //specifically, we need to connect "tmp" with the head of the building solution, with the CPD until the CPD finds such head
+                    debug("adding", *cpdPathEnd, "in solution");
+                    result->addHead(*cpdPathEnd);
+                    vectorplus<const State*> connect = this->connectStates(cpdPathStart, cpdPathEnd);
+                    for (auto s : connect.reverse()) {
+                        debug("adding ", s, "in solution");
+                        result->addHead(*s);
+                    }
+
+                    cpdPathEnd = cpdPathStart;
+                    cpdPathStart = cpdPathStart->getParent();
+                }
+                //add the start
+                result->addHead(*cpdPathEnd);
             }
+
+            info(*result);
+            
             return std::unique_ptr<StateSolutionPath<State>>{result};
+
+            // auto result = new StateSolutionPath<State>{};
+            // const State* tmp = &actualGoal;
+            // while (tmp != nullptr) {
+            //     debug("adding ", tmp, "to solution");
+            //     result->addHead(*tmp);
+            //     tmp = tmp->getParent();
+            // }
+            // return std::unique_ptr<StateSolutionPath<State>>{result};
         }
         virtual cost_t getSolutionCostFromGoalFetched(const State& start, const State& actualGoal, const State* goal) const {
             return actualGoal.getCost();

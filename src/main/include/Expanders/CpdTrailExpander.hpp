@@ -181,7 +181,14 @@ namespace pathfinding::search {
         }
         //TODO here we require that the state has getEarliestPerturbationSourceId method. It would be better to create a method for it or a new subclass of STATE where this method is added as a pure virtual method.
         virtual std::pair<STATE&, cost_t> getSuccessor(const STATE& state, int successorNumber, Supplier& supplier) {
-            throw cpp_utils::exceptions::NotYetImplementedException{""};
+            if (successorNumber >= this->graph.getOutDegree(state.getPosition())) {
+                throw cpp_utils::exceptions::makeImpossibleException("success", successorNumber, "is greater than the out degree!");
+            }
+            auto outEdge = this->graph.getOutEdge(state.getPosition(), successorNumber);
+            return std::pair<STATE&, cost_t>{
+                supplier.getState(outEdge.getSinkId(), cpd_search_generated_e::GRAPHSUCCESSOR),
+                outEdge.getPayload().getCost()
+            };
         }
     public:
         virtual MemoryConsumption getByteMemoryOccupied() const {
