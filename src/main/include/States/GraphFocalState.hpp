@@ -4,7 +4,7 @@
 #include <pathfinding-utils/GraphState.hpp>
 
 #include "cpd_search_generated_e.hpp"
-#include "generation_enum_t.hpp"
+#include "cpd_search_generated_e.hpp"
 
 namespace pathfinding::search {
 
@@ -18,9 +18,9 @@ namespace pathfinding::search {
      * @tparam E 
      */
     template <typename G, typename V, typename E>
-    class GraphFocalState: public GraphState<G, V, E, generation_enum_t> {
+    class GraphFocalState: public GraphState<G, V, E, cpd_search_generated_e> {
         using This = GraphFocalState<G, V, E>;
-        using Super = GraphState<G, V, E, generation_enum_t>;
+        using Super = GraphState<G, V, E, cpd_search_generated_e>;
     private:
         /**
          * @brief if we follow the CPDPath from this search node till the goal, this is the source of the first perturbated edge we encounter
@@ -33,7 +33,7 @@ namespace pathfinding::search {
          */
         cost_t lastEarliestPerturbationSourceIdCost;
     public:
-        GraphFocalState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location, generation_enum_t source): Super{id, g, location, source}, 
+        GraphFocalState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location, cpd_search_generated_e source): Super{id, g, location, source}, 
             lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY} {
 
         }

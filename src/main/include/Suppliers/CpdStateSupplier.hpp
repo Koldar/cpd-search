@@ -13,10 +13,11 @@ namespace pathfinding::search {
      * @tparam G payload type pf the map
      * @tparam V payload type of each vertex in the graph
      */
-    template <typename G, typename V, typename E = PerturbatedCost>
-    class CpdStateSupplier: public AbstractSimpleWeightedDirectedGraphStateSupplier<CpdState<G, V, E>, G, V, E> {
-        using This = CpdStateSupplier<G, V, E>;
-        using Super = AbstractSimpleWeightedDirectedGraphStateSupplier<CpdState<G, V, E>, G, V, E>;
+    template <typename G, typename V, typename E, typename REASON>
+    class CpdStateSupplier: public AbstractSimpleWeightedDirectedGraphStateSupplier<CpdState<G, V, E, REASON>, G, V, E, REASON> {
+        using State = CpdState<G, V, E, REASON>;
+        using This = CpdStateSupplier<G, V, E, REASON>;
+        using Super = AbstractSimpleWeightedDirectedGraphStateSupplier<State, G, V, E, REASON>;
     public:
         /**
          * @brief Construct a new Graph State Supplier object
@@ -36,11 +37,11 @@ namespace pathfinding::search {
         }
         This& operator =(const This& other) = delete;
     protected:
-        virtual stateid_t generateStateId(nodeid_t location) {
+        virtual stateid_t generateStateId(nodeid_t location, const REASON& reason) {
             return location;
         }
-        virtual CpdState<G, V, E> generateNewInstance(stateid_t id, nodeid_t location) {
-            return CpdState<G, V, E>{id, this->graph, location};
+        virtual State generateNewInstance(stateid_t id, nodeid_t location, const REASON& reason) {
+            return State{id, this->graph, location};
         }
     };
 

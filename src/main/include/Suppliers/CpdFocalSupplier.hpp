@@ -10,9 +10,10 @@ namespace pathfinding::search {
      * @tparam V payload type of each vertex in the graph
      */
     template <typename G, typename V, typename E>
-    class CpdFocalSupplier: public AbstractSimpleWeightedDirectedGraphStateSupplier<GraphFocalState<G, V, E>, G, V, E, generation_enum_t> {
-        typedef CpdFocalSupplier<G, V, E> CpdFocalSupplierInstance;
-        typedef AbstractSimpleWeightedDirectedGraphStateSupplier<GraphFocalState<G, V, E>, G, V, E, generation_enum_t> Super;
+    class CpdFocalSupplier: public AbstractSimpleWeightedDirectedGraphStateSupplier<GraphFocalState<G, V, E>, G, V, E, cpd_search_generated_e> {
+        using State = GraphFocalState<G, V, E>;
+        using This = CpdFocalSupplier<G, V, E>;
+        using Super = AbstractSimpleWeightedDirectedGraphStateSupplier<State, G, V, E, cpd_search_generated_e>;
     public:
         /**
          * @brief Construct a new Graph State Supplier object
@@ -25,21 +26,21 @@ namespace pathfinding::search {
         virtual ~CpdFocalSupplier() {
 
         }
-        CpdFocalSupplier(const CpdFocalSupplierInstance& other) = delete;
-        CpdFocalSupplier(CpdFocalSupplierInstance&& other) : Super{::std::move(other)} {
+        CpdFocalSupplier(const This& other) = delete;
+        CpdFocalSupplier(This&& other) : Super{::std::move(other)} {
         }
-        CpdFocalSupplierInstance& operator =(const CpdFocalSupplierInstance& other) = delete;
-        CpdFocalSupplierInstance& operator =(CpdFocalSupplierInstance&& other) {
+        This& operator =(const This& other) = delete;
+        This& operator =(This&& other) {
             Super::operator =(std::move(other));
             return *this;
         }
     protected:
-        virtual stateid_t generateStateId(nodeid_t location, generation_enum_t source) {
+        virtual stateid_t generateStateId(nodeid_t location, const cpd_search_generated_e& source) {
             return location;
         }
 
-        virtual GraphFocalState<G, V, E> generateNewInstance(stateid_t id, nodeid_t location, generation_enum_t source) {
-            return GraphFocalState<G, V, E>{id, this->graph, location, source};
+        virtual State generateNewInstance(stateid_t id, nodeid_t location, const cpd_search_generated_e& source) {
+            return State{id, this->graph, location, source};
         }
     public:
         

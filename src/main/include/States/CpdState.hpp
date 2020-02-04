@@ -14,11 +14,11 @@ namespace pathfinding::search {
      * @tparam V type of the each vertex in the graph
      * @tparam E type of each edge in the graph
      */
-    template <typename G, typename V, typename E>
-    class CpdState: public GraphState<G, V, E> {
+    template <typename G, typename V, typename E, typename REASON>
+    class CpdState: public GraphState<G, V, E, REASON> {
     public:
-        using This = CpdState<G, V, E>;
-        using Super = GraphState<G, V, E>;
+        using This = CpdState<G, V, E, REASON>;
+        using Super = GraphState<G, V, E, REASON>;
     protected:
         /**
          * @brief if we follow the CPDPath from this search node till the goal, this is the source of the first perturbated edge we encounter

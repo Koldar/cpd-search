@@ -190,12 +190,12 @@ namespace pathfinding::search {
             return g + h;
         }
     protected:
-        virtual std::unique_ptr<ISolutionPath<const State*, const State&>> buildSolutionFromGoalFetched(const State& start, const State& actualGoal, const State* goal) {
+        virtual std::unique_ptr<ISolutionPath<State>> buildSolutionFromGoalFetched(const State& start, const State& actualGoal, const State* goal) {
             auto result = new StateSolutionPath<State>{};
             const State* tmp = &actualGoal;
             while (tmp != nullptr) {
                 debug("adding ", tmp, "to solution");
-                result->addHead(tmp);
+                result->addHead(*tmp);
                 tmp = tmp->getParent();
             }
             return std::unique_ptr<StateSolutionPath<State>>{result};

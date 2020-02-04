@@ -92,9 +92,9 @@ namespace pathfinding::search {
      */
     template <typename G, typename V>
     class CpdFocalOptimalSearch: public IMemorable, public ISearchAlgorithm<GraphFocalState<G, V, PerturbatedCost>, const GraphFocalState<G, V, PerturbatedCost>*, const GraphFocalState<G, V, PerturbatedCost>&>, public ISingleListenable<listeners::CpdFocalSearchListener<G, V, GraphFocalState<G, V, PerturbatedCost>>> {
-        using GraphStateReal = GraphFocalState<G, V, PerturbatedCost>;
+        using State = GraphFocalState<G, V, PerturbatedCost>;
         using This = CpdFocalOptimalSearch<G, V>;
-        using Listener = listeners::CpdFocalSearchListener<G, V, GraphStateReal>;
+        using Listener = listeners::CpdFocalSearchListener<G, V, State>;
         using Super2 = ISingleListenable<Listener>;
     private:
         /**
@@ -108,13 +108,13 @@ namespace pathfinding::search {
          */
         const CpdManager<G, V>& cpdManager;
 
-        CpdFocalHeuristic<GraphStateReal, G, V>& heuristic;
-        IGoalChecker<GraphStateReal>& goalChecker;
+        CpdFocalHeuristic<State, G, V>& heuristic;
+        IGoalChecker<State>& goalChecker;
         CpdFocalExpander<G, V>& expander;
-        IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier;
-        IStatePruner<GraphStateReal>& pruner;
+        IStateSupplier<State, nodeid_t, cpd_search_generated_e>& supplier;
+        IStatePruner<State>& pruner;
 
-        FocalList<GraphStateReal, internal::OpenListOptimalOrderer<G,V>, internal::FocalListOptimalOrderer<G,V>, internal::GraphFocalOptimalStateGetCost<G,V>, cost_t>* focalList;
+        FocalList<State, internal::OpenListOptimalOrderer<G,V>, internal::FocalListOptimalOrderer<G,V>, internal::GraphFocalOptimalStateGetCost<G,V>, cost_t>* focalList;
     public:
         /**
          * @brief Construct a new Time Cpd Search object
@@ -127,12 +127,12 @@ namespace pathfinding::search {
          * @param cpdManager cpd manager that will be used to poll the cpd. It needs to be already loaded
          * @param epsilon suboptimality bound to test
          */
-        CpdFocalOptimalSearch(CpdFocalHeuristic<GraphStateReal, G, V>& heuristic, IGoalChecker<GraphStateReal>& goalChecker, IStateSupplier<GraphStateReal, nodeid_t, generation_enum_t>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<GraphStateReal>& pruner, const CpdManager<G,V>& cpdManager, const fractional_number<cost_t>& focalListWeight, const fractional_number<cost_t>& epsilon) : Super2{},
+        CpdFocalOptimalSearch(CpdFocalHeuristic<State, G, V>& heuristic, IGoalChecker<State>& goalChecker, IStateSupplier<State, nodeid_t, cpd_search_generated_e>& supplier, CpdFocalExpander<G, V>& expander, IStatePruner<State>& pruner, const CpdManager<G,V>& cpdManager, const fractional_number<cost_t>& focalListWeight, const fractional_number<cost_t>& epsilon) : Super2{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager}
             {
 
-            this->focalList = new FocalList<GraphStateReal, internal::OpenListOptimalOrderer<G,V>, internal::FocalListOptimalOrderer<G,V>, internal::GraphFocalOptimalStateGetCost<G,V>, cost_t>{focalListWeight};
+            this->focalList = new FocalList<State, internal::OpenListOptimalOrderer<G,V>, internal::FocalListOptimalOrderer<G,V>, internal::GraphFocalOptimalStateGetCost<G,V>, cost_t>{focalListWeight};
             if (!heuristic.isConsistent()) {
                 throw cpp_utils::exceptions::InvalidArgumentException{"the heuristic is not consistent!"};
             }
@@ -176,7 +176,7 @@ namespace pathfinding::search {
         virtual std::string getName() const {
             return "CPD-Focal-Search";
         }
-        virtual void setupSearch(const GraphStateReal* start, const GraphStateReal* goal) {
+        virtual void setupSearch(const State* start, const State* goal) {
             //cleanup before running since at the end we may want to poll information on the other structures
             this->heuristic.cleanup();
             this->expander.cleanup();
@@ -205,11 +205,11 @@ namespace pathfinding::search {
          * 
          * @param from the search node where we start
          * @param to the search node where we need to go
-         * @return vectorplus<const GraphStateReal*> list of possibly new state generated going from @c from to @c to
+         * @return vectorplus<const State*> list of possibly new state generated going from @c from to @c to
          */
-        virtual vectorplus<const GraphStateReal*> connectStates(const GraphStateReal* from, const GraphStateReal* to) const {
-            vectorplus<const GraphStateReal*> result{};
-            const GraphStateReal* tmp = from;
+        virtual vectorplus<const State*> connectStates(const State* from, const State* to) const {
+            vectorplus<const State*> result{};
+            const State* tmp = from;
             //result contains only the nodes between from and to, from and to excluded
             if (from->getPosition() == to->getPosition()) {
                 return result;
@@ -221,8 +221,8 @@ namespace pathfinding::search {
                 if (!this->cpdManager.getFirstMove(tmp->getPosition(), to->getPosition(), nextMove, nextNode, moveCost)) {
                     throw cpp_utils::exceptions::ImpossibleException{};
                 }
-                GraphStateReal* tmp2 = &this->supplier.getState(nextNode, generation_enum_t::FROM_SOLUTION);
-                tmp2->setParent(const_cast<GraphStateReal*>(tmp));
+                State* tmp2 = &this->supplier.getState(nextNode, cpd_search_generated_e::FROM_SOLUTION);
+                tmp2->setParent(const_cast<State*>(tmp));
                 if (tmp2->getPosition() == to->getPosition()) {
                     goto exit;
                 }
@@ -234,44 +234,42 @@ namespace pathfinding::search {
             exit:;
             return result;
         }
-        virtual std::unique_ptr<ISolutionPath<const GraphStateReal*, const GraphStateReal&>> buildSolutionFromGoalFetched(const GraphStateReal& start, const GraphStateReal& actualGoal, const GraphStateReal* goal) {
-            auto result = new StateSolutionPath<GraphStateReal>{};
+        virtual std::unique_ptr<ISolutionPath<State>> buildSolutionFromGoalFetched(const State& start, const State& actualGoal, const State* goal) {
+            auto result = new StateSolutionPath<State>{};
 
             if (actualGoal == start) {
-                result->add(&start);
+                result->add(start);
             } else {
-                const GraphStateReal* cpdPathEnd = &actualGoal;
-                const GraphStateReal* cpdPathStart = actualGoal.getParent();
+                const State* cpdPathEnd = &actualGoal;
+                const State* cpdPathStart = actualGoal.getParent();
                 
                 while (cpdPathStart != nullptr) {
                     info("need to connect path from", *cpdPathStart, " to ", *cpdPathEnd);
                     //we need to rebuild the path, since the search has jumped from a loation to another one via the CPD.
                     //specifically, we need to connect "tmp" with the head of the building solution, with the CPD until the CPD finds such head
                     debug("adding", *cpdPathEnd, "in solution");
-                    result->addHead(cpdPathEnd);
-                    vectorplus<const GraphStateReal*> connect = this->connectStates(cpdPathStart, cpdPathEnd);
+                    result->addHead(*cpdPathEnd);
+                    vectorplus<const State*> connect = this->connectStates(cpdPathStart, cpdPathEnd);
                     for (auto s : connect.reverse()) {
                         debug("adding ", s, "in solution");
-                        result->addHead(s);
+                        result->addHead(*s);
                     }
 
                     cpdPathEnd = cpdPathStart;
                     cpdPathStart = cpdPathStart->getParent();
                 }
                 //add the start
-                result->addHead(cpdPathEnd);
+                result->addHead(*cpdPathEnd);
             }
 
-            for (auto s: *result) {
-                info("s is", *s, "and g is", s->getG());
-            }
+            info(*result);
             
-            return std::unique_ptr<StateSolutionPath<GraphStateReal>>{result};
+            return std::unique_ptr<StateSolutionPath<State>>{result};
         }
-        virtual cost_t getSolutionCostFromGoalFetched(const GraphStateReal& start, const GraphStateReal& actualGoal, const GraphStateReal* goal) const {
+        virtual cost_t getSolutionCostFromGoalFetched(const State& start, const State& actualGoal, const State* goal) const {
             return actualGoal.getCost();
         }
-        virtual const GraphStateReal& performSearch(GraphStateReal& start, const GraphStateReal* expectedGoal) {
+        virtual const State& performSearch(State& start, const State* expectedGoal) {
             info("************************* NEW SEARCH *****************************");
             if (expectedGoal != nullptr) {
                 info("starting A*! start = ", start, "goal = ", *expectedGoal);
@@ -280,7 +278,7 @@ namespace pathfinding::search {
             }
             
             int aStarIteration = 0;
-            const GraphStateReal* goal = nullptr;
+            const State* goal = nullptr;
 
             MDValue<cost_t> upperbound{cost_t::INFTY};
             //TODO if we add the number listener, for some weird reason there is an invalid free as soon we  call the onNumberDecreased callback method... -.-""
@@ -294,7 +292,7 @@ namespace pathfinding::search {
             // auto lowerboundListener = LogNumberListener<cost_t>{"lowerbound", 8};
             // lowerbound.setListener(lowerboundListener);
 
-            GraphStateReal* startPtr = &start;
+            State* startPtr = &start;
             start.setG(0);
             this->fireEvent([startPtr, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, *startPtr); });
             start.setH(this->heuristic.getHeuristic(start, expectedGoal));
@@ -322,8 +320,8 @@ namespace pathfinding::search {
                     this->focalList->checkFocalInvariant();
                 }
 
-                GraphStateReal& current = this->focalList->peekFromFocal();
-                GraphStateReal* currentPtr = &current;
+                State& current = this->focalList->peekFromFocal();
+                State* currentPtr = &current;
                 info("************************* NEW A* STEP #", aStarIteration, "*****************************");
                 critical("PEEK FROM FOCAL: ", current, " f=", current.getF(), "g=", current.getG(), "h=", current.getH(), "lowerbound=", lowerbound, "upperbound=", upperbound, "goal cost=", goal != nullptr ? goal->getG() : 0, "open size", this->focalList->getOpenListSize(), "focal size", this->focalList->getFocalListSize());
 
@@ -408,7 +406,7 @@ namespace pathfinding::search {
 
                 info("computing successors of state ", current, "...");
                 for(auto pair: this->expander.getSuccessors(current, this->supplier)) {
-                    GraphStateReal& successor = pair.first;
+                    State& successor = pair.first;
                     cost_t current_to_successor_cost = pair.second;
                     info("handling successor", successor, "( cost from parent ", current_to_successor_cost, ")");
 
@@ -433,7 +431,7 @@ namespace pathfinding::search {
                         //update successor information
                         successor.setG(gval);
                         successor.setF(this->computeF(gval, successor.getH()));
-                        const GraphStateReal* oldParent = successor.getParent();
+                        const State* oldParent = successor.getParent();
                         successor.setParent(&current);
 
                         this->focalList->decreaseOpenListKey(successor);
@@ -461,7 +459,7 @@ namespace pathfinding::search {
                         //reput in open list
                         successor.setG(gval);
                         successor.setF(this->computeF(gval, successor.getH()));
-                        const GraphStateReal* oldParent = successor.getParent();
+                        const State* oldParent = successor.getParent();
                         successor.setParent(&current);
                         //we need to add in openlist for sure. But we need to check if we should add it in focal as well
                         // previous check was (successor.getF() <= this->focalList->getW() * bestF)
@@ -472,7 +470,7 @@ namespace pathfinding::search {
                             this->focalList->pushInOpen(successor);
                         }
                     } else {
-                        GraphStateReal* successorPtr = &successor;
+                        State* successorPtr = &successor;
                         //state is not present in open list. Add to it
                         cost_t gval = current.getG() + current_to_successor_cost;
                         this->fireEvent([successorPtr, aStarIteration](Listener& l) {l.onStartingComputingHeuristic(aStarIteration, *successorPtr); });
@@ -533,14 +531,14 @@ namespace pathfinding::search {
          * @return true if @c currentGoal is better than @c previousGoal
          * @return false otherwise
          */
-        bool isGoalFoundBetter(cost_t upperbound, const GraphStateReal* previousGoal, const GraphStateReal& currentGoal) const {
+        bool isGoalFoundBetter(cost_t upperbound, const State* previousGoal, const State& currentGoal) const {
             if (previousGoal != nullptr) {
                 return currentGoal.getG() < upperbound;
             } else {
                 return true;
             }
         }
-        bool shouldWeEarlyTerminate(cost_t lowerbound, cost_t upperbound, const GraphStateReal& current, const GraphStateReal* goal) const {
+        bool shouldWeEarlyTerminate(cost_t lowerbound, cost_t upperbound, const State& current, const State* goal) const {
             /*
                 * in focal:
                 * f_1(n) <= w * f_1min (w > 1)
@@ -582,11 +580,11 @@ namespace pathfinding::search {
                 return result;
             }
         }
-        const GraphStateReal* earlyTerminate(const GraphStateReal& state, const GraphStateReal* expectedGoal) {
+        const State* earlyTerminate(const State& state, const State* expectedGoal) {
             moveid_t nextMove;
             nodeid_t nextVertex;
             cost_t originalMoveCost;
-            const GraphStateReal* currentState = &state;
+            const State* currentState = &state;
             nodeid_t goalVertex = expectedGoal->getPosition();
             
             while (true) {
@@ -594,11 +592,11 @@ namespace pathfinding::search {
                     return currentState;
                 }
                 if (this->cpdManager.getFirstMove(currentState->getPosition(), goalVertex, nextMove, nextVertex, originalMoveCost)) {
-                    std::pair<GraphStateReal&, cost_t> pair = this->expander.getSuccessor(*currentState, nextMove, this->supplier);
-                    GraphStateReal& successor = pair.first;
+                    std::pair<State&, cost_t> pair = this->expander.getSuccessor(*currentState, nextMove, this->supplier);
+                    State& successor = pair.first;
                     cost_t actionCost = pair.second;
-                    successor.setSource(generation_enum_t::FROM_EARLY_TERMINATION);
-                    successor.setParent(const_cast<GraphStateReal*>(currentState));
+                    successor.setReason(cpd_search_generated_e::CPDPATH);
+                    successor.setParent(const_cast<State*>(currentState));
                     successor.setG(currentState->getG() + actionCost);
                     successor.setH(cost_t::INFTY);
                     currentState = &successor;

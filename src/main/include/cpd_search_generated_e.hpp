@@ -33,6 +33,11 @@ namespace pathfinding {
          * 
          */
         static const cpd_search_generated_e GRAPHSUCCESSOR;
+        /**
+         * @brief the state is generated while building the algorithm solution
+         * 
+         */
+        static const cpd_search_generated_e FROM_SOLUTION;
     };
 
 

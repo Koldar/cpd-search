@@ -82,13 +82,13 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-opti
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, cpd_search_generated_e::INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, cpd_search_generated_e::INPUT);
             start.getPayload();
             auto solution = factory_output->search.search(start, goal, false, false);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphState<std::string, xyLoc, PerturbatedCost>* x) {
-                    return x->getPayload();
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0})
             ));
             REQUIRE(solution->getCost() == 0);
@@ -99,12 +99,12 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-opti
             xyLoc goalLoc{1,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, cpd_search_generated_e::INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, cpd_search_generated_e::INPUT);
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
-                    return x->getPayload();
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
             ));
             REQUIRE(solution->getCost() == 141);
@@ -115,12 +115,12 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-opti
             xyLoc goalLoc{0,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, cpd_search_generated_e::INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, cpd_search_generated_e::INPUT);
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
-                    return x->getPayload();
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
             ));
             REQUIRE(solution->getCost() == 100);
@@ -143,13 +143,13 @@ SCENARIO("test CpdFocalOptimalSearch with suboptimality bound", "[cpd-focal-opti
             xyLoc goalLoc{0,4};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, cpd_search_generated_e::INPUT);
+            GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, cpd_search_generated_e::INPUT);
             auto solution = factory_output->search.search(start, goal, false, true);
             critical("fetch a solution with cost of", solution->getCost());
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) {
-                    return x->getPayload();
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{4,4}), 
                     std::make_tuple(xyLoc{3,4}),
@@ -179,8 +179,8 @@ void performCpdFocalSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridM
     nodeid_t goalId = perturbatedGraph.idOfVertex(goalLoc);
 
     factory_output->search.setupSearch(nullptr, nullptr);
-    auto start = &(factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT));
-    auto goal = &(factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT));
+    auto start = &(factory_output->stateSupplier.getState(startId, cpd_search_generated_e::INPUT));
+    auto goal = &(factory_output->stateSupplier.getState(goalId, cpd_search_generated_e::INPUT));
 
     auto solution = factory_output->search.search(*start, *goal, false, false);
     critical("solution found!");
@@ -209,7 +209,7 @@ void performCpdFocalSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridM
     image->saveBMP("./query1");
     delete image;
 
-    std::function<nodeid_t(const GraphFocalState<std::string, xyLoc, PerturbatedCost>*)> mapper2 = [&](const GraphFocalState<std::string, xyLoc, PerturbatedCost>* x) -> nodeid_t { return x->getPosition(); };
+    std::function<nodeid_t(const GraphFocalState<std::string, xyLoc, PerturbatedCost>*)> mapper2 = [&](auto& x) -> nodeid_t { return x->getPosition(); };
 
     validator::checkIfPathOptimal(
         perturbatedGraph,

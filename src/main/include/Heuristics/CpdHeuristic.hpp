@@ -254,7 +254,7 @@ namespace pathfinding::search {
          */
         size_t getCachedElementsNumber() const {
             debug("the cache is ", this->hOriginalCache);
-            return this->hOriginalCache.filter([&](cost_t h) {return h.isNotInfinity();}).size();
+            return this->hOriginalCache.select([&](cost_t h) {return h.isNotInfinity();}).size();
         }
         const compressed_path_database::CpdManager<G, V>& getCpdManager() const {
             return this->cpdManager;

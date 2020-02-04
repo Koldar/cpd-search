@@ -5,7 +5,7 @@
 
 
 #include "PerturbatedCost.hpp"
-#include "generation_enum_t.hpp"
+#include "cpd_search_generated_e.hpp"
 
 namespace pathfinding::search {
 

@@ -241,32 +241,32 @@ SCENARIO("test GraphState supporting concepts") {
 
             //moves
             REQUIRE(successors
-                .filter([&, originalGraph](std::pair<State, cost_t> p) {
+                .select([&, originalGraph](std::pair<State, cost_t> p) {
                     return originalGraph->getVertex(p.first.getPosition()) == xyLoc{2,3};
                 }).size() == 1);
             REQUIRE(successors
-                .filter([&, originalGraph](std::pair<State, cost_t> p) {
+                .select([&, originalGraph](std::pair<State, cost_t> p) {
                     return originalGraph->getVertex(p.first.getPosition()) == xyLoc{0,3};
                 }).size() == 1);
             REQUIRE(successors
-                .filter([&, originalGraph](std::pair<State, cost_t> p) {
+                .select([&, originalGraph](std::pair<State, cost_t> p) {
                     return originalGraph->getVertex(p.first.getPosition()) == xyLoc{1,2};
                 }).size() == 1);
             REQUIRE(successors
-                .filter([&, originalGraph](std::pair<State, cost_t> p) {
+                .select([&, originalGraph](std::pair<State, cost_t> p) {
                     return originalGraph->getVertex(p.first.getPosition()) == xyLoc{1,4};
                 }).size() == 1);
 
             REQUIRE(successors
-                .filter([&, originalGraph](std::pair<State, cost_t> p) {
+                .select([&, originalGraph](std::pair<State, cost_t> p) {
                     return originalGraph->getVertex(p.first.getPosition()) == xyLoc{0,2};
                 }).size() == 1);
             REQUIRE(successors
-                .filter([&, originalGraph](std::pair<State, cost_t> p) {
+                .select([&, originalGraph](std::pair<State, cost_t> p) {
                     return originalGraph->getVertex(p.first.getPosition()) == xyLoc{0,4};
                 }).size() == 1);
             REQUIRE(successors
-                .filter([&, originalGraph](std::pair<State, cost_t> p) {
+                .select([&, originalGraph](std::pair<State, cost_t> p) {
                     return originalGraph->getVertex(p.first.getPosition()) == xyLoc{2,4};
                 }).size() == 1);
         }
@@ -360,7 +360,7 @@ SCENARIO("test CpdSearch with optimality bound") {
             auto solution = factory_output->search.search(start, goal, false, false);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0})
             ));
             REQUIRE(solution->getCost() == 0);
@@ -377,7 +377,7 @@ SCENARIO("test CpdSearch with optimality bound") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
             ));
             REQUIRE(solution->getCost() == 141);
@@ -394,7 +394,7 @@ SCENARIO("test CpdSearch with optimality bound") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
             ));
             REQUIRE(solution->getCost() == 100);
@@ -411,7 +411,7 @@ SCENARIO("test CpdSearch with optimality bound") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
                     std::make_tuple(xyLoc{1,0}),
@@ -432,7 +432,7 @@ SCENARIO("test CpdSearch with optimality bound") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
                     std::make_tuple(xyLoc{0,1}),
@@ -453,7 +453,7 @@ SCENARIO("test CpdSearch with optimality bound") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
                     std::make_tuple(xyLoc{0,1}),
@@ -476,7 +476,7 @@ SCENARIO("test CpdSearch with optimality bound") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{4,4}),
                     std::make_tuple(xyLoc{3,4}),
@@ -549,7 +549,7 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             auto solution = factory_output->search.search(start, goal, false, false);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0})
             ));
             REQUIRE(solution->getCost() == 0);
@@ -565,7 +565,7 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
             ));
             REQUIRE(solution->getCost() == 141);
@@ -581,7 +581,7 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
             ));
             REQUIRE(solution->getCost() == 100);
@@ -597,7 +597,7 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
                     std::make_tuple(xyLoc{1,0}),
@@ -619,7 +619,7 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
                     std::make_tuple(xyLoc{0,1}),
@@ -642,7 +642,7 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{4,4}),
                     std::make_tuple(xyLoc{3,4}),
@@ -665,7 +665,7 @@ SCENARIO("test CpdSearch for suboptimality solutions") {
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
-                    return x->getPayload();
+                    return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}),
                     std::make_tuple(xyLoc{1,0}),
@@ -985,8 +985,8 @@ SCENARIO("test CPdFocalHeuristic") {
 //             xyLoc goalLoc{267, 136};
 //             nodeid_t startId = g.idOfVertex(startLoc);
 //             nodeid_t goalId = g.idOfVertex(goalLoc);
-//             GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, generation_enum_t::FROM_INPUT);
-//             GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, generation_enum_t::FROM_INPUT);
+//             GraphFocalState<std::string, xyLoc, PerturbatedCost>& start = factory_output->stateSupplier.getState(startId, cpd_search_generated_e::FROM_INPUT);
+//             GraphFocalState<std::string, xyLoc, PerturbatedCost>& goal = factory_output->stateSupplier.getState(goalId, cpd_search_generated_e::FROM_INPUT);
 //             auto solution = factory_output->search.search(start, goal, false, false);
 //             REQUIRE(solution->getCost() == 1000);
 //         }

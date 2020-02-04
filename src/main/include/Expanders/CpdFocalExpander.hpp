@@ -14,7 +14,7 @@ namespace pathfinding::search {
      * @tparam V 
      */
     template <typename G, typename V>
-    class CpdFocalExpander: public IStateExpander<GraphFocalState<G, V, PerturbatedCost>, nodeid_t, generation_enum_t> {
+    class CpdFocalExpander: public IStateExpander<GraphFocalState<G, V, PerturbatedCost>, nodeid_t, cpd_search_generated_e> {
         typedef CpdFocalExpander<G, V> CpdFocalExpanderInstance;
     protected:
         const cpp_utils::graphs::IImmutableGraph<G, V, PerturbatedCost>& graph;
@@ -34,12 +34,12 @@ namespace pathfinding::search {
 
         }
     public:
-        virtual cpp_utils::vectorplus<std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>> getSuccessors(const GraphFocalState<G, V, PerturbatedCost>& state, IStateSupplier<GraphFocalState<G, V, PerturbatedCost>, nodeid_t, generation_enum_t>& supplier) {
+        virtual cpp_utils::vectorplus<std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>> getSuccessors(const GraphFocalState<G, V, PerturbatedCost>& state, IStateSupplier<GraphFocalState<G, V, PerturbatedCost>, nodeid_t, cpd_search_generated_e>& supplier) {
             cpp_utils::vectorplus<std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>> result{};
 
             //****************** FOLLOW CPD UNTIL IT FINDS EITHER THE GOAL OR A PERTURBATION ********************
             result.add(std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>{
-                supplier.getState(state.getEarliestPerturbationSourceId(), generation_enum_t::FROM_SEARCH),
+                supplier.getState(state.getEarliestPerturbationSourceId(), cpd_search_generated_e::GRAPHSUCCESSOR),
                 state.getCostToEarliestPerturbationSourceId()
             });
             nodeid_t nodeFollowingCPDPath = state.getEarliestPerturbationSourceId();
@@ -51,23 +51,23 @@ namespace pathfinding::search {
                     continue;
                 }
                 result.add(std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>{
-                    supplier.getState(outEdge.getSinkId(), generation_enum_t::FROM_SEARCH),
+                    supplier.getState(outEdge.getSinkId(), cpd_search_generated_e::GRAPHSUCCESSOR),
                     outEdge.getPayload().getCost()
                 });
             }
 
             return result;
         }
-        virtual std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t> getSuccessor(const GraphFocalState<G, V, PerturbatedCost>& state, int successorNumber, IStateSupplier<GraphFocalState<G, V, PerturbatedCost>, nodeid_t, generation_enum_t>& supplier) {
+        virtual std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t> getSuccessor(const GraphFocalState<G, V, PerturbatedCost>& state, int successorNumber, IStateSupplier<GraphFocalState<G, V, PerturbatedCost>, nodeid_t, cpd_search_generated_e>& supplier) {
             if (successorNumber == this->graph.getOutDegree(state.getPosition())) {
                 return std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>{
-                    supplier.getState(state.getEarliestPerturbationSourceId(), generation_enum_t::FROM_SEARCH),
+                    supplier.getState(state.getEarliestPerturbationSourceId(), cpd_search_generated_e::GRAPHSUCCESSOR),
                     state.getCostToEarliestPerturbationSourceId()
                 };   
             } else {
                 auto outEdge = this->graph.getOutEdge(state.getPosition(), successorNumber);
                 return std::pair<GraphFocalState<G, V, PerturbatedCost>&, cost_t>{
-                    supplier.getState(outEdge.getSinkId(), generation_enum_t::FROM_SEARCH),
+                    supplier.getState(outEdge.getSinkId(), cpd_search_generated_e::GRAPHSUCCESSOR),
                     outEdge.getPayload().getCost()
                 };
             }
