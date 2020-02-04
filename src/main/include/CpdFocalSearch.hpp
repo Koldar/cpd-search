@@ -84,7 +84,7 @@ namespace pathfinding::search {
      * criterion in focal list: choose the state with highest g value
      * 
      * 
-     * @tparam GraphState<G,V> 
+     * @tparam GraphState<G, V, cost_t> 
      * @tparam G 
      * @tparam V 
      * @tparam OTHER 

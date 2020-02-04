@@ -344,6 +344,20 @@ namespace pathfinding::search {
 
         }
     private:
+        /**
+         * @brief perform the early termination routine
+         * 
+         * the routine will generate the intermediate nodes are well. Each intermediate node is generated as follows:
+         * @li g always updated to the new value (even if it is higher than the current one)
+         * @li parent always update it (even if not optimal)
+         * @li h always set to \f$ +\infty \f$ (to avoid overhead time).
+         * 
+         * This mechanismk woprks for optimal algorithms, since we know that the node we are expanding is the optimal one up until now.
+         * 
+         * @param state the state where we start early terminating
+         * @param expectedGoal the goal to reach
+         * @return const GraphStateReal* the state representing the goal rached
+         */
         const GraphStateReal* earlyTerminate(const GraphStateReal& state, const GraphStateReal* expectedGoal) {
             moveid_t nextMove;
             nodeid_t nextVertex;

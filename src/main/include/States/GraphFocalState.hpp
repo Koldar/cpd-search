@@ -3,6 +3,7 @@
 
 #include <pathfinding-utils/GraphState.hpp>
 
+#include "cpd_search_generated_e.hpp"
 #include "generation_enum_t.hpp"
 
 namespace pathfinding::search {
@@ -17,8 +18,9 @@ namespace pathfinding::search {
      * @tparam E 
      */
     template <typename G, typename V, typename E>
-    class GraphFocalState: public GraphState<G, V, E> {
-        typedef GraphFocalState<G, V, E> This;
+    class GraphFocalState: public GraphState<G, V, E, generation_enum_t> {
+        using This = GraphFocalState<G, V, E>;
+        using Super = GraphState<G, V, E, generation_enum_t>;
     private:
         /**
          * @brief if we follow the CPDPath from this search node till the goal, this is the source of the first perturbated edge we encounter
@@ -30,14 +32,8 @@ namespace pathfinding::search {
          * 
          */
         cost_t lastEarliestPerturbationSourceIdCost;
-        /**
-         * @brief Speficies who has generated this state
-         * 
-         */
-        generation_enum_t source;
     public:
-        GraphFocalState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location, generation_enum_t source): GraphState<G, V, E>{id, g, location}, 
-            source{source},
+        GraphFocalState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location, generation_enum_t source): Super{id, g, location, source}, 
             lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY} {
 
         }
@@ -45,8 +41,7 @@ namespace pathfinding::search {
 
         }
         GraphFocalState(const This& other) = delete;
-        GraphFocalState(This&& other) : GraphState<G, V, E>{::std::move(other)}, 
-            source{other.source},
+        GraphFocalState(This&& other) : Super{::std::move(other)}, 
             lastEarliestPerturbationSourceId{other.lastEarliestPerturbationSourceId}, 
             lastEarliestPerturbationSourceIdCost{other.lastEarliestPerturbationSourceIdCost} {
 
@@ -54,7 +49,7 @@ namespace pathfinding::search {
 
         This& operator =(const This& other) = delete;
         This& operator =(This&& other) {
-            GraphState<G, V, E>::operator =(::std::move(other));
+            Super::operator =(::std::move(other));
             this->source = other.source;
             this->lastEarliestPerturbationSourceId = other.lastEarliestPerturbationSourceId;
             this->lastEarliestPerturbationSourceIdCost = other.lastEarliestPerturbationSourceIdCost;
@@ -72,12 +67,6 @@ namespace pathfinding::search {
             this->parent = static_cast<This*>(parent);
         }
     public:
-        generation_enum_t getSource() const {
-            return this->source;
-        }
-        void setSource(generation_enum_t source) {
-            this->source = source;
-        }
         void updateEarlyPerturbationInfo(nodeid_t sourceId, cost_t costToReach) {
             this->lastEarliestPerturbationSourceId = sourceId;
             this->lastEarliestPerturbationSourceIdCost = costToReach;

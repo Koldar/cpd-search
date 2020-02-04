@@ -39,6 +39,7 @@ namespace pathfinding::search {
          * The value belongs in [0, 1]
          */
         double discount;
+        
     public:
         DiscountedCpdState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location): Super{id, g, location}, discount{1} {
 

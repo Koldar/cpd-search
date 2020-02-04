@@ -24,16 +24,16 @@ namespace pathfinding::search::listeners {
         This& operator=(const This& o) = default;
         This& operator=(This&& o) = default;
     public:
-        void onNodeExpanded(int iteration, const GraphState<G, V, PerturbatedCost>& s) {
+        void onNodeExpanded(int iteration, const STATE& s) {
             this->updateNodeExpanded();
         }
-        void onNodeGenerated(int iteration, const GraphState<G, V, PerturbatedCost>& s) {
+        void onNodeGenerated(int iteration, const STATE& s) {
             this->updateNodeGenerated();
         }
-        void onStartingComputingHeuristic(int iteration, const GraphState<G, V, PerturbatedCost>& s) {
+        void onStartingComputingHeuristic(int iteration, const STATE& s) {
             this->startHeuristicTimer();
         }
-        void onEndingComputingHeuristic(int iteration, const GraphState<G, V, PerturbatedCost>& s) {
+        void onEndingComputingHeuristic(int iteration, const STATE& s) {
             this->stopHeuristicTimer();
         }
         void onSolutionFound(int iteration, const STATE& goal) {

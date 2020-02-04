@@ -85,7 +85,7 @@ namespace pathfinding::search {
      * @li the heuristic is consisent, but the search is not a bestFirst search, so items in the closed list can be put in open again if new_g < old_g;
      * @li if the upperbound is less than the lowerbound and no solutions have been found, the search has no solutions.
      * 
-     * @tparam GraphState<G,V> 
+     * @tparam GraphState<G, V, cost_t> 
      * @tparam G 
      * @tparam V 
      * @tparam OTHER 

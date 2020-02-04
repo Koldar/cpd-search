@@ -87,6 +87,11 @@ namespace pathfinding::search {
                     //the first move we perform generates a state. Cache it because this is the only state we may duplicate in this list
                     firstSuccessorAlongCpdPath = edge.getSinkId();
                 }
+                /* while we are computing the intermediate node, we need to set not only cost from the state value, but the parent as well.
+                 * which parent should we set? 2 choices:
+                 *  - the state where the early termination has started: if we choose this one, the solution path will lack all the intemediate nodes (hence, not a great solution)
+                 *  - the state before this one in the cpd path
+                 */
                 STATE& trailState = supplier.getState(edge.getSinkId());
                 cost_t cost = edge.getPayload().getCost();
                 finer("follow the cpd path from ", *previous, "we reached", trailState, "cost to reach it is", cost);
