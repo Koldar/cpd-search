@@ -398,7 +398,7 @@ SCENARIO("test CpdJumpSearch with suboptimality bound", "[cpd-jump-search-subopt
 
 template <typename G, typename V, typename E>
 void performCpdJumpSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridMap& gridMap, const boost::filesystem::path& basename, const IImmutableGraph<G,V,E>& originalMap, const IImmutableGraph<G,V,PerturbatedCost>& perturbatedGraph, const CpdManager<G,V>& cpdManager, fractional_cost epsilon) {
-    static costFunction_t<PerturbatedCost> costFunction = [&](auto pc) { return pc.getCost();};
+    static function_t<PerturbatedCost, cost_t> costFunction = [&](auto& pc) { return pc.getCost();};
     CpdJumpSearchFactory factory{};
     //focal bound set to 2 ==> WA*
     auto factory_output = factory.get(cpdManager, perturbatedGraph, epsilon);
@@ -459,7 +459,7 @@ void performCpdJumpSearchOptimalTest(xyLoc startLoc, xyLoc goalLoc, const GridMa
     //         >&)
     //     >
 
-    cpp_utils::function_t<CpdState<G, V, PerturbatedCost, cpd_search_generated_e>, nodeid_t> mapper2 = [&](auto& x) { return x.getPosition(); };
+    cpp_utils::function_t<CpdState<G, V, PerturbatedCost, cpd_search_generated_e>, nodeid_t> mapper2 = [&](const CpdState<G, V, PerturbatedCost, cpd_search_generated_e>& x) { return x.getPosition(); };
 
     validator::checkIfPathSuboptimalityBound(
         2.0,

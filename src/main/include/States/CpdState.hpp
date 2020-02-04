@@ -36,7 +36,7 @@ namespace pathfinding::search {
          */
         cost_t perturbatedPathCost;
     public:
-        CpdState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location): Super{id, g, location}, 
+        CpdState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location, const REASON& reason): Super{id, g, location, reason}, 
             lastEarliestPerturbationSourceId{0}, lastEarliestPerturbationSourceIdCost{cost_t::INFTY}, perturbatedPathCost{cost_t::INFTY} {
 
         }

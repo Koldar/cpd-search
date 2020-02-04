@@ -41,7 +41,7 @@ namespace pathfinding::search {
             return location;
         }
         virtual State generateNewInstance(stateid_t id, nodeid_t location, const REASON& reason) {
-            return State{id, this->graph, location};
+            return State{id, this->graph, location, reason};
         }
     };
 

@@ -75,11 +75,13 @@ namespace pathfinding::search {
      * @tparam V type of the payload of each vertex in map graph
      */
     template <typename G, typename V>
-    class CpdJumpSearch: public IMemorable, public ISearchAlgorithm<CpdState<G, V, PerturbatedCost, cpd_search_generated_e>, const CpdState<G, V, PerturbatedCost, cpd_search_generated_e>*, const CpdState<G, V, PerturbatedCost, cpd_search_generated_e>&>, public ISingleListenable<listeners::CpdJumpSearchListener<G, V, CpdState<G, V, PerturbatedCost, cpd_search_generated_e>>> {
+    class CpdJumpSearch: public IMemorable, public ISearchAlgorithm<CpdState<G, V, PerturbatedCost, cpd_search_generated_e>>, public ISingleListenable<listeners::CpdJumpSearchListener<G, V, CpdState<G, V, PerturbatedCost, cpd_search_generated_e>>> {
         using State = CpdState<G, V, PerturbatedCost, cpd_search_generated_e>;
         using This =  CpdJumpSearch<G, V>;
         using Listener = listeners::CpdJumpSearchListener<G, V, State>;
         using Super2 = ISingleListenable<Listener>;
+        using Expander = CpdExpander<G, V, State>;
+        using Supplier = IStateSupplier<State, nodeid_t, cpd_search_generated_e>;
     public:
         /**
          * @brief Construct a new Time Cpd Search object
@@ -93,7 +95,7 @@ namespace pathfinding::search {
          * @param epsilon suboptimality bound to test
          * @param openListCapacity 
          */
-        CpdJumpSearch(CpdFocalHeuristic<State, G, V>& heuristic, IGoalChecker<State>& goalChecker, CpdStateSupplier<G, V, PerturbatedCost, cpd_search_generated_e>& supplier, CpdExpander<G, V, State>& expander, IStatePruner<State>& pruner, const CpdManager<G,V>& cpdManager, fractional_cost epsilon, unsigned int openListCapacity = 1024) : Super2{},
+        CpdJumpSearch(CpdFocalHeuristic<State, G, V>& heuristic, IGoalChecker<State>& goalChecker, Supplier& supplier, Expander& expander, IStatePruner<State>& pruner, const CpdManager<G,V>& cpdManager, fractional_cost epsilon, unsigned int openListCapacity = 1024) : Super2{},
             heuristic{heuristic}, goalChecker{goalChecker}, supplier{supplier}, expander{expander}, pruner{pruner},
             epsilon{epsilon}, cpdManager{cpdManager},
             openList{nullptr} {
@@ -149,8 +151,8 @@ namespace pathfinding::search {
         const CpdManager<G, V>& cpdManager;
         CpdFocalHeuristic<State, G, V>& heuristic;
         IGoalChecker<State>& goalChecker;
-        CpdExpander<G, V, State>& expander;
-        CpdStateSupplier<G, V, PerturbatedCost, cpd_search_generated_e>& supplier;
+        Expander& expander;
+        Supplier& supplier;
         IStatePruner<State>& pruner;
         StaticPriorityQueue<State>* openList;
     public:
@@ -174,12 +176,12 @@ namespace pathfinding::search {
             return g + h;
         }
     protected:
-        virtual std::unique_ptr<ISolutionPath<State>> buildSolutionFromGoalFetched(const State& start, const State& actualGoal, const State* goal) {
+        virtual std::unique_ptr<ISolutionPath<State, const State*, const State&>> buildSolutionFromGoalFetched(const State& start, const State& actualGoal, const State* goal) {
             auto result = new StateSolutionPath<State>{};
             const State* tmp = &actualGoal;
             while (tmp != nullptr) {
                 debug("adding ", tmp, "to solution");
-                result->addHead(tmp);
+                result->addHead(*tmp);
                 tmp = tmp->getParent();
             }
             return std::unique_ptr<StateSolutionPath<State>>{result};

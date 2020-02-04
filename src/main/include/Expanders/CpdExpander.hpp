@@ -16,11 +16,11 @@ namespace pathfinding::search {
      * @tparam V 
      */
     template <typename G, typename V, typename STATE>
-    class CpdExpander: public IStateExpander<STATE, nodeid_t> {
+    class CpdExpander: public IStateExpander<STATE, nodeid_t, cpd_search_generated_e> {
     public:
-        using This = CpdExpander<G,V,STATE>;
-        using Super = IStateExpander<STATE, nodeid_t>;
-        using Supplier = IStateSupplier<STATE, nodeid_t>;
+        using This = CpdExpander<G, V, STATE>;
+        using Super = IStateExpander<STATE, nodeid_t, cpd_search_generated_e>;
+        using Supplier = IStateSupplier<STATE, nodeid_t, cpd_search_generated_e>;
     protected:
         const cpp_utils::graphs::IImmutableGraph<G, V, PerturbatedCost>& graph;
     public:
@@ -43,7 +43,7 @@ namespace pathfinding::search {
             cpp_utils::vectorplus<std::pair<STATE&, cost_t>> result{};
 
             //****************** FOLLOW CPD UNTIL IT FINDS EITHER THE GOAL OR A PERTURBATION ********************
-            STATE& beforePerturbation = supplier.getState(state.getEarliestPerturbationSourceId());
+            STATE& beforePerturbation = supplier.getState(state.getEarliestPerturbationSourceId(), cpd_search_generated_e::CPDPATH);
             critical("follow the cpd path from ", state, "till", beforePerturbation, "cost to reach it is", state.getCostToEarliestPerturbationSourceId());
             result.add(std::pair<STATE&, cost_t>{
                 beforePerturbation,
@@ -58,7 +58,7 @@ namespace pathfinding::search {
                     continue;
                 }
                 result.add(std::pair<STATE&, cost_t>{
-                    supplier.getState(outEdge.getSinkId()),
+                    supplier.getState(outEdge.getSinkId(), cpd_search_generated_e::GRAPHSUCCESSOR),
                     outEdge.getPayload().getCost()
                 });
             }
@@ -70,13 +70,13 @@ namespace pathfinding::search {
         virtual std::pair<STATE&, cost_t> getSuccessor(const STATE& state, int successorNumber, Supplier& supplier) {
             if (successorNumber == this->graph.getOutDegree(state.getPosition())) {
                 return std::pair<STATE&, cost_t>{
-                    supplier.getState(state.getEarliestPerturbationSourceId()),
+                    supplier.getState(state.getEarliestPerturbationSourceId(), cpd_search_generated_e::CPDPATH),
                     state.getCostToEarliestPerturbationSourceId()
                 };   
             } else {
                 auto outEdge = this->graph.getOutEdge(state.getPosition(), successorNumber);
                 return std::pair<STATE&, cost_t>{
-                    supplier.getState(outEdge.getSinkId()),
+                    supplier.getState(outEdge.getSinkId(), cpd_search_generated_e::GRAPHSUCCESSOR),
                     outEdge.getPayload().getCost()
                 };
             }

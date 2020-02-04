@@ -3,6 +3,7 @@
 
 #include <cpp-utils/igraph.hpp>
 #include <cpp-utils/math.hpp>
+#include <cpp-utils/exceptions.hpp>
 
 #include "CpdFocalHeuristic.hpp"
 #include "PerturbatedCost.hpp"
@@ -22,11 +23,11 @@ namespace pathfinding::search {
      * @tparam V 
      */
     template <typename G, typename V, typename STATE>
-    class CpdTrailExpander: public IStateExpander<STATE, nodeid_t> {
+    class CpdTrailExpander: public IStateExpander<STATE, nodeid_t, cpd_search_generated_e> {
     public:
         using This = CpdTrailExpander<G,V,STATE>;
-        using Super = IStateExpander<STATE, nodeid_t>;
-        using Supplier = IStateSupplier<STATE, nodeid_t>;
+        using Super = IStateExpander<STATE, nodeid_t, cpd_search_generated_e>;
+        using Supplier = IStateSupplier<STATE, nodeid_t, cpd_search_generated_e>;
     protected:
         const cpp_utils::graphs::IImmutableGraph<G, V, PerturbatedCost>& graph;
         /**
@@ -92,7 +93,7 @@ namespace pathfinding::search {
                  *  - the state where the early termination has started: if we choose this one, the solution path will lack all the intemediate nodes (hence, not a great solution)
                  *  - the state before this one in the cpd path
                  */
-                STATE& trailState = supplier.getState(edge.getSinkId());
+                STATE& trailState = supplier.getState(edge.getSinkId(), cpd_search_generated_e::CPDPATH);
                 cost_t cost = edge.getPayload().getCost();
                 finer("follow the cpd path from ", *previous, "we reached", trailState, "cost to reach it is", cost);
                 costFromStateToCurrentTrail += cost;
@@ -149,7 +150,7 @@ namespace pathfinding::search {
                     continue;
                 }
                 info("analyzing single moves");
-                STATE& successor = supplier.getState(outEdge.getSinkId());
+                STATE& successor = supplier.getState(outEdge.getSinkId(), cpd_search_generated_e::GRAPHSUCCESSOR);
                 if (maxed) {
                     //we are already at 1
                     successor.setDiscount(1.);
@@ -180,18 +181,7 @@ namespace pathfinding::search {
         }
         //TODO here we require that the state has getEarliestPerturbationSourceId method. It would be better to create a method for it or a new subclass of STATE where this method is added as a pure virtual method.
         virtual std::pair<STATE&, cost_t> getSuccessor(const STATE& state, int successorNumber, Supplier& supplier) {
-            if (successorNumber == this->graph.getOutDegree(state.getPosition())) {
-                return std::pair<STATE&, cost_t>{
-                    supplier.getState(state.getEarliestPerturbationSourceId()),
-                    state.getCostToEarliestPerturbationSourceId()
-                };   
-            } else {
-                auto outEdge = this->graph.getOutEdge(state.getPosition(), successorNumber);
-                return std::pair<STATE&, cost_t>{
-                    supplier.getState(outEdge.getSinkId()),
-                    outEdge.getPayload().getCost()
-                };
-            }
+            throw cpp_utils::exceptions::NotYetImplementedException{""};
         }
     public:
         virtual MemoryConsumption getByteMemoryOccupied() const {

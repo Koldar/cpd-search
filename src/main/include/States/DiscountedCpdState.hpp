@@ -27,11 +27,11 @@ namespace pathfinding::search {
      * @tparam V type of the each vertex in the graph
      * @tparam E type of each edge in the graph
      */
-    template <typename G, typename V, typename E>
-    class DiscountedCpdState: public CpdState<G, V, E> {
+    template <typename G, typename V, typename E, typename REASON>
+    class DiscountedCpdState: public CpdState<G, V, E, REASON> {
     public:
-        using This = DiscountedCpdState<G, V, E>;
-        using Super = CpdState<G, V, E>;
+        using This = DiscountedCpdState<G, V, E, REASON>;
+        using Super = CpdState<G, V, E, REASON>;
     protected:
         /**
          * @brief the discount factor used to discount the heuristic.
@@ -41,7 +41,7 @@ namespace pathfinding::search {
         double discount;
         
     public:
-        DiscountedCpdState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location): Super{id, g, location}, discount{1} {
+        DiscountedCpdState(stateid_t id, const IImmutableGraph<G, V, E>& g, nodeid_t location, const REASON& reason): Super{id, g, location, reason}, discount{1} {
 
         }
         virtual ~DiscountedCpdState() {
