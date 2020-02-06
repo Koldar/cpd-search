@@ -224,7 +224,7 @@ namespace pathfinding::search {
          */
         cost_t getCPDPathOriginalWeights(nodeid_t node) const {
             DO_ON_DEBUG_IF(!this->isCostSet(node)) {
-                throw cpp_utils::exceptions::makeInvalidArgumentException("node", node, "heuristic costs have not been computed yet");
+                throw cpp_utils::exceptions::InvalidArgumentException{"node", node, "heuristic costs have not been computed yet"};
             }
             return this->hOriginalCache[node];
         }
@@ -236,7 +236,7 @@ namespace pathfinding::search {
          */
         cost_t getCPDPathPerturbatedWeights(nodeid_t node) const {
             DO_ON_DEBUG_IF(!this->isCostSet(node)) {
-                throw cpp_utils::exceptions::makeInvalidArgumentException("node", node, "heuristic costs have not been computed yet");
+                throw cpp_utils::exceptions::InvalidArgumentException{"node", node, "heuristic costs have not been computed yet"};
             }
             return this->hPerturbatedCache[node];
         }
