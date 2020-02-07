@@ -46,52 +46,21 @@ namespace pathfinding::search {
          * @brief Internal do not use it
          * 
          */
-        PerturbatedCost() : cost{0}, perturbated{false} {
-
-        }
-        PerturbatedCost(cost_t cost, bool perturbated): cost{cost}, perturbated{perturbated} {
-
-        }
-        virtual ~PerturbatedCost() {
-
-        }
-        PerturbatedCost(const PerturbatedCost& other): cost{other.cost}, perturbated{other.perturbated} {
-
-        }
-        PerturbatedCost(PerturbatedCost&& other): cost{other.cost}, perturbated{other.perturbated} {
-
-        }
-        PerturbatedCost& operator =(const PerturbatedCost& other) {
-            this->cost = other.cost;
-            this->perturbated = other.perturbated;
-            return *this;
-        }
-        PerturbatedCost& operator =(PerturbatedCost&& other) {
-            this->cost = other.cost;
-            this->perturbated = other.perturbated;
-            return *this;
-        }
+        PerturbatedCost();
+        PerturbatedCost(cost_t cost, bool perturbated);
+        virtual ~PerturbatedCost();
+        PerturbatedCost(const PerturbatedCost& other);
+        PerturbatedCost(PerturbatedCost&& other);
+        PerturbatedCost& operator =(const PerturbatedCost& other);
+        PerturbatedCost& operator =(PerturbatedCost&& other);
     public:
-        friend bool operator ==(const PerturbatedCost& a, const PerturbatedCost& b) {
-            return a.cost == b.cost && a.perturbated == b.perturbated;
-        }
-        friend std::ostream& operator <<(std::ostream& ss, const PerturbatedCost& a) {
-            ss << "{" << a.cost << " " << (a.perturbated ? "perturbated" : "unaffected") << "}";
-            return ss;
-        }
+        friend bool operator ==(const PerturbatedCost& a, const PerturbatedCost& b);
+        friend std::ostream& operator <<(std::ostream& ss, const PerturbatedCost& a);
     public:
-        static cost_t getCost(const PerturbatedCost& c) {
-            return c.getCost();
-        }
-        cost_t getCost() const {
-            return this->cost;
-        }
-        bool isPerturbated() const {
-            return this->perturbated;
-        }
-        bool isUnaffected() const {
-            return !this->perturbated;
-        }
+        static cost_t getCost(const PerturbatedCost& c);
+        cost_t getCost() const;
+        bool isPerturbated() const;
+        bool isUnaffected() const;
     };
 
 }

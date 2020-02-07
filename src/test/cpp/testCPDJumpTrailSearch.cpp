@@ -1,5 +1,9 @@
 #include "catch.hpp"
 
+#include <boost/filesystem.hpp>
+
+#include <cpp-utils/filesystem.hpp>
+
 #include <pathfinding-utils/GridMap.hpp>
 #include <pathfinding-utils/MovingAIGridMapReader.hpp>
 #include <pathfinding-utils/GridMapGraphConverter.hpp>
@@ -33,7 +37,16 @@ SCENARIO("test CpdJumpTrailSearch with optimality bound", "[cpd-jump-trail-searc
         };
         GridMap gridMap = reader.load(boost::filesystem::path{"square03.map"});
         GridMapGraphConverter converter{GridBranching::EIGHT_CONNECTED};
-        AdjacentGraph<std::string, xyLoc, cost_t> graph{*converter.toGraph(gridMap)};
+
+        auto ptrMap = converter.toGraph(gridMap);
+
+        ptrMap->saveJPEG("mappppppp.map");
+
+        critical("perturbated edge VAFFANCULO is ", ptrMap->getOutEdge(ptrMap->idOfVertex(xyLoc{2, 4}), ptrMap->idOfVertex(xyLoc{3, 4})));
+
+        exit(1);
+
+        AdjacentGraph<std::string, xyLoc, cost_t> graph{converter.toGraph(gridMap)};
 
         /*
          *  01234
@@ -49,16 +62,53 @@ SCENARIO("test CpdJumpTrailSearch with optimality bound", "[cpd-jump-trail-searc
 
         // INCLUDE THE CPD
 
+        critical("perturbated edge TOOMANYVERYVERYBEFORE is ", graph.getOutEdge(graph.idOfVertex(xyLoc{2, 4}), graph.idOfVertex(xyLoc{3, 4})));
+
         CpdManager<std::string, xyLoc> cpdManager{boost::filesystem::path{"./square03.cpd"}, graph};
         const IImmutableGraph<std::string, xyLoc, cost_t>& g = cpdManager.getReorderedGraph();
 
+        
+
         // CREATE THE TIME GRAPH WITH PERTURBATIONS
 
-        auto perturbatedGraphTmp = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>(cpdManager.getReorderedGraph().mapEdges<PerturbatedCost>([&](cost_t c) { return PerturbatedCost{c, false}; }));
+        boost::filesystem::path p{"./square03-reordered.jpeg"};
+        if (!cpp_utils::filesystem::exists(p)){
+            g.saveJPEG(p);
+        }
+
+        cpp_utils::function_t<cost_t, PerturbatedCost> buildPerturbatedCost = [&](auto& c) { return PerturbatedCost{c, false}; };
+
+        nodeid_t sourceId = g.idOfVertex(xyLoc{2, 4});
+        nodeid_t sinkId = g.idOfVertex(xyLoc{3, 4});
+
+        auto_critical(sourceId);
+        auto_critical(sinkId);
+
+        critical("perturbated edge VERYVERYBEFORE is ", g.getOutEdge(sourceId, sinkId));
+
+        auto perturbatedGraphTmp = std::unique_ptr<IImmutableGraph<std::string, xyLoc, PerturbatedCost>>{g.mapEdges(buildPerturbatedCost)};
+
+        critical("perturbated edge VERYBEFORE is ", perturbatedGraphTmp->getOutEdge(perturbatedGraphTmp->idOfVertex(xyLoc{2, 4}), 
+            perturbatedGraphTmp->idOfVertex(xyLoc{3, 4})));
+
         AdjacentGraph<std::string, xyLoc, PerturbatedCost> perturbatedGraph{*perturbatedGraphTmp};
 
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{1, 0}), perturbatedGraph.idOfVertex(xyLoc{2, 0}), PerturbatedCost{150, true});
-        perturbatedGraph.changeWeightUndirectedEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), perturbatedGraph.idOfVertex(xyLoc{3, 4}), PerturbatedCost{200, true});
+        critical("perturbated edge BEFORE is ", perturbatedGraph.getOutEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), 
+            perturbatedGraph.idOfVertex(xyLoc{3, 4})));
+
+        perturbatedGraph.changeWeightUndirectedEdge(
+            perturbatedGraph.idOfVertex(xyLoc{1, 0}), 
+            perturbatedGraph.idOfVertex(xyLoc{2, 0}), 
+            PerturbatedCost{150, true}
+        );
+        perturbatedGraph.changeWeightUndirectedEdge(
+            perturbatedGraph.idOfVertex(xyLoc{2, 4}), 
+            perturbatedGraph.idOfVertex(xyLoc{3, 4}), 
+            PerturbatedCost{200, true}
+        );
+
+        critical("perturbated edge is ", perturbatedGraph.getOutEdge(perturbatedGraph.idOfVertex(xyLoc{2, 4}), 
+            perturbatedGraph.idOfVertex(xyLoc{3, 4})));
 
         // USE THE FACTORY TO PROVIDE CpdSearch
 

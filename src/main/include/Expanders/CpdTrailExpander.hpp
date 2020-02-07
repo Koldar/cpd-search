@@ -75,16 +75,20 @@ namespace pathfinding::search {
             //the cost between state "state" and the current element of the trail. 
             cost_t costFromStateToCurrentTrail = 0;
             while(true) {
+                critical("following CPD path: we are in ", previous->getPosition());
                 //get next state
                 auto edge = this->graph.getOutEdge(
                     previous->getPosition(), 
                     this->cpdHeuristic.getNextMove(previous->getPosition())
                 );
+                critical("next move is ", this->cpdHeuristic.getNextMove(previous->getPosition()),". Edge is", edge);
                 if (edge.getPayload().isPerturbated()) {
+                    critical("edge perturbated. Stop");
                     //found the first perturbation. end loop
                     break;
                 }
                 if (result.isEmpty()) {
+                    critical("this is the first element computed by following the cpd");
                     //the first move we perform generates a state. Cache it because this is the only state we may duplicate in this list
                     firstSuccessorAlongCpdPath = edge.getSinkId();
                 }
@@ -95,7 +99,7 @@ namespace pathfinding::search {
                  */
                 STATE& trailState = supplier.getState(edge.getSinkId(), cpd_search_generated_e::CPDPATH);
                 cost_t cost = edge.getPayload().getCost();
-                finer("follow the cpd path from ", *previous, "we reached", trailState, "cost to reach it is", cost);
+                c_finer("follow the cpd path from ", *previous, "we reached", trailState, "cost to reach it is", cost);
                 costFromStateToCurrentTrail += cost;
                 result.add(std::pair<STATE&, cost_t>{
                     trailState,

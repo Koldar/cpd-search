@@ -217,8 +217,8 @@ SCENARIO("test GraphState supporting concepts") {
             }
 
             THEN("state already generated") {
-                auto s = supplier.getState(graph->idOfVertex(xyLoc{1,3}), cpd_search_generated_e::INPUT);
-                auto s2 = supplier.getState(graph->idOfVertex(xyLoc{1,3}),cpd_search_generated_e::INPUT);
+                auto& s = supplier.getState(graph->idOfVertex(xyLoc{1,3}), cpd_search_generated_e::INPUT);
+                auto& s2 = supplier.getState(graph->idOfVertex(xyLoc{1,3}),cpd_search_generated_e::INPUT);
                 REQUIRE(s.getPosition() == graph->idOfVertex(xyLoc{1,3}));
                 REQUIRE(s.getId() == graph->idOfVertex(xyLoc{1,3}));
                 REQUIRE(s2.getPosition() == graph->idOfVertex(xyLoc{1,3}));
@@ -355,8 +355,8 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            auto start = factory_output->stateSupplier.getState(startId);
-            auto goal = factory_output->stateSupplier.getState(goalId);
+            auto& start = factory_output->stateSupplier.getState(startId);
+            auto& goal = factory_output->stateSupplier.getState(goalId);
             auto solution = factory_output->search.search(start, goal, false, false);
             REQUIRE(
                 solution->map<std::tuple<xyLoc>>([&](auto x) {
@@ -372,11 +372,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{1,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            auto start = factory_output->stateSupplier.getState(startId);
-            auto goal = factory_output->stateSupplier.getState(goalId); 
+            auto& start = factory_output->stateSupplier.getState(startId);
+            auto& goal = factory_output->stateSupplier.getState(goalId); 
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](auto x) {
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
                     return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{1,1})
             ));
@@ -389,11 +389,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{0,1};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            auto start = factory_output->stateSupplier.getState(startId);
-            auto goal = factory_output->stateSupplier.getState(goalId); 
+            auto& start = factory_output->stateSupplier.getState(startId);
+            auto& goal = factory_output->stateSupplier.getState(goalId); 
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](auto x) {
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
                     return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(std::make_tuple(xyLoc{0,0}), std::make_tuple(xyLoc{0,1})
             ));
@@ -406,11 +406,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{4,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            auto start = factory_output->stateSupplier.getState(startId);
-            auto goal = factory_output->stateSupplier.getState(goalId); 
+            auto& start = factory_output->stateSupplier.getState(startId);
+            auto& goal = factory_output->stateSupplier.getState(goalId); 
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](auto x) {
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
                     return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
@@ -427,11 +427,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{0,4};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            auto start = factory_output->stateSupplier.getState(startId);
-            auto goal = factory_output->stateSupplier.getState(goalId); 
+            auto& start = factory_output->stateSupplier.getState(startId);
+            auto& goal = factory_output->stateSupplier.getState(goalId); 
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](auto x) {
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
                     return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
@@ -448,11 +448,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{4,4};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            auto start = factory_output->stateSupplier.getState(startId);
-            auto goal = factory_output->stateSupplier.getState(goalId); 
+            auto& start = factory_output->stateSupplier.getState(startId);
+            auto& goal = factory_output->stateSupplier.getState(goalId); 
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](auto x) {
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
                     return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{0,0}), 
@@ -471,11 +471,11 @@ SCENARIO("test CpdSearch with optimality bound") {
             xyLoc goalLoc{0,0};
             nodeid_t startId = g.idOfVertex(startLoc);
             nodeid_t goalId = g.idOfVertex(goalLoc);
-            auto start = factory_output->stateSupplier.getState(startId);
-            auto goal = factory_output->stateSupplier.getState(goalId); 
+            auto& start = factory_output->stateSupplier.getState(startId);
+            auto& goal = factory_output->stateSupplier.getState(goalId); 
             auto solution = factory_output->search.search(start, goal, false, true);
             REQUIRE(
-                solution->map<std::tuple<xyLoc>>([&](auto x) {
+                solution->map<std::tuple<xyLoc>>([&](auto& x) {
                     return x.getPayload();
                 }) == vectorplus<std::tuple<xyLoc>>::make(
                     std::make_tuple(xyLoc{4,4}),
